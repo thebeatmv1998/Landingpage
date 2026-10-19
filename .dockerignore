@@ -1,0 +1,8 @@
+node_modules
+data
+data-smoke
+*.tar.gz
+.git
+.github
+unraid
+.zcodeignore

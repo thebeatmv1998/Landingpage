@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Syntax check
+        run: |
+          find server public/js mock tests -name '*.js' -print -o -name '*.mjs' -print | xargs -n1 node --check
+      - name: Unit tests
+        run: npm run unit
+      - name: End-to-end smoke
+        run: npm run smoke

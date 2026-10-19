@@ -1,0 +1,58 @@
+// Inline SVG glyph set (stroke style, 24x24 viewBox).
+// Used for service types and UI chrome — fully offline, no CDN needed.
+
+const P = {
+  phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>',
+  tv: '<rect x="2.5" y="5" width="19" height="13" rx="2"/><path d="M8 21h8M12 18v3"/>',
+  film: '<rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M7 3v18M17 3v18M3 8.5h4M3 15.5h4M17 8.5h4M17 15.5h4"/>',
+  music: '<circle cx="7" cy="18" r="2.6"/><circle cx="18" cy="15.5" r="2.6"/><path d="M9.6 18V6.5L20.6 4v11.5M9.6 9.5l11-2.5"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>',
+  download: '<path d="M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5"/><path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/>',
+  play: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z" fill="currentColor" stroke="none"/>',
+  pause: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7M14 8.5v7"/>',
+  book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15.5H6.5A2.5 2.5 0 0 0 4 21z"/><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20M8 7.5h8"/>',
+  cloud: '<path d="M7 18.5a4.5 4.5 0 0 1-.6-8.96 6 6 0 0 1 11.6 1.4A3.75 3.75 0 0 1 17.5 18.5z"/>',
+  shield: '<path d="M12 3 5 6v5c0 4.6 3 8.4 7 10 4-1.6 7-5.4 7-10V6z"/><path d="M9.2 12.2l2 2 3.6-4"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="9.5" r="1.8"/><path d="M3.5 17.5 9 12l4 4 3-2.5 4.5 4"/>',
+  share: '<circle cx="6" cy="12" r="2.7"/><circle cx="18" cy="5.5" r="2.7"/><circle cx="18" cy="18.5" r="2.7"/><path d="M8.4 10.7l7.2-3.9M8.4 13.3l7.2 3.9"/>',
+  key: '<circle cx="8" cy="14.5" r="4.5"/><path d="M11.5 11.5 20 3m-3.5 0H20v3.5"/>',
+  cube: '<path d="M12 2.5 21 7v10l-9 4.5L3 17V7z"/><path d="M3.3 7.2 12 11.5l8.7-4.3M12 11.5V21"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 2.6 4.2 5.6 4.2 9S14.8 18.4 12 21c-2.8-2.6-4.2-5.6-4.2-9S9.2 5.6 12 3z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 6.5V12l3.5 2.5"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 2.8V6.5M16 2.8V6.5"/>',
+  users: '<circle cx="9" cy="8.5" r="3.5"/><path d="M2.8 20c.6-3.4 3.1-5.5 6.2-5.5s5.6 2.1 6.2 5.5"/><circle cx="17" cy="9.5" r="2.6"/><path d="M15.7 14.6c2.8.2 4.8 2 5.5 4.9"/>',
+  settings: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.5 6.9l2 1.2M17.5 15.9l2 1.2M4.5 17.1l2-1.2M17.5 8.1l2-1.2M2.8 12h2.4M18.8 12h2.4"/>',
+  palette: '<path d="M12 3a9 9 0 1 0 0 18c1.4 0 2.2-.9 2.2-2 0-1.2-1-1.7-1-2.7 0-.9.7-1.6 1.7-1.6h1.8A4.3 4.3 0 0 0 21 10.4C20.7 6 16.7 3 12 3z"/><circle cx="7.6" cy="10.2" r="1.15"/><circle cx="11" cy="7.2" r="1.15"/><circle cx="15.4" cy="8.2" r="1.15"/>',
+  chart: '<path d="M4 4v15.5A.5.5 0 0 0 4.5 20H20"/><path d="M8.5 15.5v-4M12.5 15.5V8M16.5 15.5v-6.5"/>',
+  plug: '<path d="M9 3v5M15 3v5"/><path d="M6.5 8h11v3.5a5.5 5.5 0 0 1-11 0z"/><path d="M12 17v4"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
+  logout: '<path d="M14 4.5H7A1.5 1.5 0 0 0 5.5 6v12A1.5 1.5 0 0 0 7 19.5h7"/><path d="M11 12h9.5m0 0-3.5-3.5m3.5 3.5-3.5 3.5"/>',
+  edit: '<path d="M4 20h4.2L20 8.2a2.1 2.1 0 0 0-3-3L5.2 17z"/><path d="M14.5 6.5l3 3"/>',
+  trash: '<path d="M4.5 6.5h15M9.5 6.5V4.8A1.3 1.3 0 0 1 10.8 3.5h2.4a1.3 1.3 0 0 1 1.3 1.3v1.7M6.5 6.5 7.4 20a1.6 1.6 0 0 0 1.6 1.5h6a1.6 1.6 0 0 0 1.6-1.5l.9-13.5"/><path d="M10 10.5v7M14 10.5v7"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  check: '<path d="M5 12.5 10 17.5 19 7"/>',
+  drag: '<circle cx="9" cy="6.5" r="1.3"/><circle cx="15" cy="6.5" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="17.5" r="1.3"/><circle cx="15" cy="17.5" r="1.3"/>',
+  chevD: '<path d="M6.5 9.5 12 15l5.5-5.5"/>',
+  refresh: '<path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 3.5V8h-4.5"/>',
+  eye: '<path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M5.5 15.5h-1a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.3M12 19.2v2.3M2.5 12h2.3M19.2 12h2.3M5 5l1.6 1.6M17.4 17.4 19 19M5 19l1.6-1.6M17.4 6.6 19 5"/>',
+  moon: '<path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/>',
+  zap: '<path d="M13 2.5 4.5 13.5H11L10 21.5 19.5 10H13z"/>',
+  arrow: '<path d="M5 12h14m0 0-5-5m5 5-5 5"/>',
+  menu: '<path d="M4 6.5h16M4 12h16M4 17.5h16"/>',
+  star: '<path d="m12 3 2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.9 6.4 20l1.3-6.2L3 9.5l6.3-.7z"/>',
+  wind: '<path d="M3 8.5h9.5a2.8 2.8 0 1 0-2.8-2.8M3 15.5h13.5a2.8 2.8 0 1 1-2.8 2.8M3 12h17"/>',
+  partly: '<circle cx="8" cy="7.5" r="2.9"/><path d="M8 2.3v1.6M8 11.1v1.6M2.8 7.5h1.6M11.6 7.5h1.6M4.3 3.8l1.1 1.1M10.6 10.1l1.1 1.1M4.3 11.2l1.1-1.1M10.6 4.9l1.1-1.1"/><path d="M9.6 20.5a4.1 4.1 0 0 1-.4-8.19 5.5 5.5 0 0 1 10.5 1.2 3.5 3.5 0 0 1-1.5 6.99z"/>',
+  drizzle: '<path d="M7 14.5a4.2 4.2 0 0 1-.5-8.37A5.6 5.6 0 0 1 17.2 7.2 3.5 3.5 0 0 1 16.6 14.2"/><path d="M8 17.5v1.5M12 17.5v1.5M16 17.5v1.5"/>',
+  rain: '<path d="M7 14.5a4.2 4.2 0 0 1-.5-8.37A5.6 5.6 0 0 1 17.2 7.2 3.5 3.5 0 0 1 16.6 14.2"/><path d="M8.5 17.5l-1 3M12.5 17.5l-1 3M16.5 17.5l-1 3"/>',
+  snow: '<path d="M7 14.5a4.2 4.2 0 0 1-.5-8.37A5.6 5.6 0 0 1 17.2 7.2 3.5 3.5 0 0 1 16.6 14.2"/><path d="M9 18v3M7.7 18.8l2.6 1.5M10.3 18.8l-2.6 1.5M15 18v3M13.7 18.8l2.6 1.5M16.3 18.8l-2.6 1.5"/>',
+  fog: '<path d="M7 13.5a4.2 4.2 0 0 1-.5-8.37A5.6 5.6 0 0 1 17.2 6.2 3.5 3.5 0 0 1 16.6 13.2"/><path d="M4 16.5h14M6 19.5h14"/>',
+  storm: '<path d="M7 13.5a4.2 4.2 0 0 1-.5-8.37A5.6 5.6 0 0 1 17.2 6.2 3.5 3.5 0 0 1 16.6 13.2"/><path d="M12.5 15.5l-2.5 4h3l-1.5 3.5"/>',
+};
+
+export function icon(name, cls = '') {
+  const d = P[name] || P.globe;
+  return `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+}

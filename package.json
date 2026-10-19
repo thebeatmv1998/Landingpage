@@ -1,0 +1,25 @@
+{
+  "name": "homedeck",
+  "version": "1.0.0",
+  "description": "Self-hosted home lab landing page / dashboard with live stats, media info and deep .arr integrations",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "mock": "node mock/mock-server.js",
+    "unit": "node tests/unit.mjs",
+    "smoke": "node tests/smoke.mjs",
+    "test": "npm run unit && npm run smoke"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "compression": "^1.8.2",
+    "dockerode": "^4.0.2",
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  HomeDeck – Unraid Docker-Template (optional!)
+  Nur falls du doch per Template statt von Hand installieren willst:
+  Datei nach /boot/config/plugins/dockerMan/templates-user/homedeck.xml kopieren.
+  Die Felder entsprechen exakt der manuellen „Add Container“-Konfiguration.
+-->
+<Container version="2">
+  <Name>homedeck</Name>
+  <Repository>homedeck-usenet:latest</Repository>
+  <Registry/>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project/>
+  <Overview>
+    Selbst gehostetes Dashboard für den Homelab: Live-Statistiken, Now-Playing und native
+    API-Integrationen für *arr-Suite, Jellyfin, Audiobookshelf, Nextcloud, Pi-hole, SABnzbd,
+    Immich, Komga, Pingvin Share, Stash, Tachidesk, Vaultwarden, Docker und mehr.
+  </Overview>
+  <Category>Network:Web Productivity:Tools: Status:Stable</Category>
+  <WebUI>http://[IP]:[PORT:8753]/</WebUI>
+  <TemplateURL/>
+  <Icon/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Description>
+    HomeDeck Dashboard. Interner Container-Port 8000, Daten in /data.
+    UID/GID/UMASK/TZ werden vom Entrypoint unterstützt.
+    „Repository not found on Docker Hub“ ist bei lokal gebautem Image normal.
+  </Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>8753</HostPort>
+        <ContainerPort>8000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/homedeck</HostDir>
+      <ContainerDir>/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+    <Volume>
+      <HostDir>/var/run/docker.sock</HostDir>
+      <ContainerDir>/var/run/docker.sock</ContainerDir>
+      <Mode>ro</Mode>
+    </Volume>
+  </Data>
+  <Environment/>
+  <Labels/>
+  <Config Name="Web-UI Port" Target="8000" Default="8753" Mode="tcp" Description="Host-Port → Container-Port 8000" Type="Port" Display="always" Required="true" Mask="false">8753</Config>
+  <Config Name="Appdata (Datenbank, Uploads, Schlüssel)" Target="/data" Default="/mnt/user/appdata/homedeck" Mode="rw" Description="SQLite-Datenbank, Hintergrundbilder und Verschlüsselungsschlüssel — diesen Ordner sichern!" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/homedeck</Config>
+  <Config Name="Docker Socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Docker-Socket für das Docker-Widget (Container-Status). Kann entfernt werden." Type="Path" Display="always" Required="false" Mask="false">/var/run/docker.sock</Config>
+  <Config Name="UID" Target="UID" Default="99" Mode="" Description="Benutzer-ID für die Dateien in /data (Unraid: nobody)" Type="Variable" Display="always" Required="false" Mask="false">99</Config>
+  <Config Name="GID" Target="GID" Default="100" Mode="" Description="Gruppen-ID für die Dateien in /data (Unraid: users)" Type="Variable" Display="always" Required="false" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="Dateirechte für neu erzeugte Dateien" Type="Variable" Display="always" Required="false" Mask="false">022</Config>
+  <Config Name="TZ" Target="TZ" Default="Europe/Berlin" Mode="" Description="Zeitzone" Type="Variable" Display="always" Required="false" Mask="false">Europe/Berlin</Config>
+  <Config Name="TRUST_PROXY" Target="TRUST_PROXY" Default="0" Mode="" Description="Auf 1 setzen, wenn HomeDeck hinter einem HTTPS-Reverse-Proxy läuft (wichtig für OAuth/SSO)." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
+  <Config Name="SECURE_COOKIES" Target="SECURE_COOKIES" Default="0" Mode="" Description="Auf 1 setzen, wenn HomeDeck ausschließlich über HTTPS erreichbar ist." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
+</Container>

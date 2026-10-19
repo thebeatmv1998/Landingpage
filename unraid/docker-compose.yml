@@ -1,0 +1,21 @@
+services:
+  homedeck:
+    build: .
+    image: homedeck-usenet:latest
+    container_name: homedeck
+    restart: unless-stopped
+    ports:
+      - "8753:8000"
+    volumes:
+      - /mnt/user/appdata/homedeck:/data
+      # Docker-Socket für das Docker-Widget (Container-Status).
+      # Zeile entfernen, wenn das nicht gewünscht ist — das Widget zeigt dann offline.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - UID=99
+      - GID=100
+      - UMASK=022
+      - TZ=Europe/Berlin
+      # Auf 1 setzen, wenn HomeDeck hinter einem HTTPS-Reverse-Proxy läuft:
+      - TRUST_PROXY=0
+      - SECURE_COOKIES=0

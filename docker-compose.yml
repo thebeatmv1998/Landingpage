@@ -1,0 +1,23 @@
+services:
+  homedeck:
+    build: .
+    container_name: homedeck
+    restart: unless-stopped
+    ports:
+      - "8080:8000"
+    volumes:
+      - homedeck-data:/data
+      # Docker socket lets the Docker widget show container states.
+      # Comment out if you don't want to expose it (the widget will just show offline).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - UID=99
+      - GID=100
+      - UMASK=022
+      - TZ=Europe/Berlin
+      # Set to 1 when running behind an HTTPS reverse proxy (affects OAuth redirects + secure cookies)
+      - TRUST_PROXY=${TRUST_PROXY:-0}
+      - SECURE_COOKIES=${SECURE_COOKIES:-0}
+
+volumes:
+  homedeck-data:
