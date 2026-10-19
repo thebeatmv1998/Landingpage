@@ -186,7 +186,7 @@ async function main() {
     { type: 'vaultwarden', name: 'Vaultwarden', url: 'http://127.0.0.1:9000/vaultwarden', api_key: 'vw-admin-token', category: 'Security' },
     { type: 'unraid', name: 'Unraid', url: 'http://127.0.0.1:9000/unraid', api_key: 'testkey-unraid', category: 'System' },
     { type: 'generic', name: 'Router', url: 'http://127.0.0.1:9000/generic', category: 'Network' },
-    { type: 'docker', name: 'Docker (unavailable in test)', url: 'http://localhost', category: 'System' },
+    { type: 'docker', name: 'Docker (unavailable in test)', url: 'http://localhost', category: 'System', extra: { socketPath: '/tmp/homedeck-no-such-docker.sock' } },
   ];
   const ids = {};
   for (const s of SERVICES) {
