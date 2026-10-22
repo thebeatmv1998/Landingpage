@@ -18,7 +18,7 @@ SOCKET=${SOCKET:-/var/run/docker.sock}
 cd "$(dirname "$0")"
 
 echo "==> Baue Image '$IMAGE' ..."
-docker build -t "$IMAGE" .
+docker build --pull -t "$IMAGE" .
 
 echo "==> Stoppe alten Container (falls vorhanden) ..."
 docker rm -f "$NAME" 2>/dev/null || true

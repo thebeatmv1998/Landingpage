@@ -14,7 +14,7 @@ OAuth2/OIDC single sign-on.
 ### Docker (recommended)
 
 ```bash
-docker build -t homedeck-usenet:latest .
+docker build --pull -t homedeck-usenet:latest .
 docker run -d --name homedeck --restart unless-stopped \
   -p 8753:8000 \
   -v /mnt/user/appdata/homedeck:/data \
@@ -23,9 +23,11 @@ docker run -d --name homedeck --restart unless-stopped \
   homedeck-usenet:latest
 ```
 
-Or use `docker compose up -d`. The container listens on **8000** internally and stores
-all persistent data in **`/data`** (SQLite DB, uploads, encryption key). `UID`/`GID`
-(numeric) drop the process privileges so files on the mounted volume are owned by that
+Or use `docker compose build --pull && docker compose up -d`. The image is pinned to
+**Node.js 24.22.1** (the patched baseline from the 2026-10-21 security release). The
+container listens on **8000** internally and stores all persistent data in **`/data`**
+(SQLite DB, uploads, encryption key). `UID`/`GID` (numeric) drop the process privileges
+so files on the mounted volume are owned by that
 user instead of root; `UMASK` and `TZ` work as usual. See `install.sh` for a one-command
 build+run on any Docker host (defaults: host port 8753, image `homedeck-usenet:latest`).
 
@@ -34,7 +36,8 @@ build+run on any Docker host (defaults: host port 8753, image `homedeck-usenet:l
 
 ### Bare Node
 
-Requires **Node.js 22.13+** (uses the built-in `node:sqlite`).
+Requires **Node.js 22.23.4+, 24.22.1+ or 26.12.1+** in the respective release line
+(patched baselines from the 2026-10-21 security release; uses the built-in `node:sqlite`).
 
 ```bash
 npm install
@@ -202,7 +205,7 @@ npm test        # unit + smoke
 ### Multi-arch image
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -t homedeck-usenet:latest .
+docker buildx build --pull --platform linux/amd64,linux/arm64 -t homedeck-usenet:latest .
 ```
 
 The smoke test covers: setup, login, CSRF, rate limiting, TOTP enrolment + login, user &
@@ -216,7 +219,7 @@ cd /mnt/user/appdata
 mkdir -p homedeck-src
 tar -xzf homedeck-usenet.tar.gz -C homedeck-src
 cd homedeck-src
-docker build -t homedeck-usenet:latest .
+docker build --pull -t homedeck-usenet:latest .
 ```
 
 Then create the container via **Docker → Add Container** (manual fields) — see the

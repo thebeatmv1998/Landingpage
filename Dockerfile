@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1
-FROM node:24-alpine
+# Pin the patched Node.js LTS baseline (security releases from 2026-10-21,
+# incl. CVE-2026-111497). The floating node:24-alpine tag is not reproducible
+# and can keep using an older cached base image on existing hosts.
+FROM node:24.22.1-alpine
 
 WORKDIR /app
 

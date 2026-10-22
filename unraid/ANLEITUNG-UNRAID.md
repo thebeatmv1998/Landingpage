@@ -38,12 +38,13 @@ ls /mnt/user/appdata/homedeck-src
 Unraid-Terminal öffnen (unten rechts `>_ Terminal`) und:
 
 ```bash
-docker build -t homedeck:latest /mnt/user/appdata/homedeck-src
+docker build --pull -t homedeck:latest /mnt/user/appdata/homedeck-src
 ```
 
 Das dauert ein paar Minuten (Node-Basis-Image + npm-Abhängigkeiten). Danach:
 
 ```bash
+# Node.js 24.22.1 (Security-Release 21.10.2026) ist im Dockerfile gepinnt.
 docker images | grep homedeck
 # erwartet:  homedeck   latest   ...
 ```
@@ -107,7 +108,7 @@ Also: In HomeDeck → **Admin → Services → Service hinzufügen** jeweils
 1. Geänderte Projektdateien erneut nach `appdata/homedeck-src` kopieren.
 2. Image neu bauen:
    ```bash
-   docker build -t homedeck:latest /mnt/user/appdata/homedeck-src
+   docker build --pull -t homedeck:latest /mnt/user/appdata/homedeck-src
    ```
 3. Docker-Tab → HomeDeck → **Apply** / „Force update" (startet mit dem neuen Image neu).
    Deine Einstellungen (Datenbank) bleiben erhalten — sie liegen in `appdata/homedeck`.
