@@ -2,3 +2,7 @@ node_modules/
 data/
 data-smoke/
 .env
+
+# Release artifacts are published as GitHub Release assets, not committed.
+*.tar.gz
+*.apk

@@ -306,7 +306,7 @@ export async function renderSettings(root, { navigate, tab: initialTab = 'profil
         ${apkAvailable ? `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0 10px">
           <a class="btn btn-primary" href="/download/homedeck.apk" download="HomeDeck-${esc(apkVersion)}.apk">${icon('download')} Download APK · 3.9 MB</a>
           <span class="hint">v${esc(apkVersion)} · Android 8.0+ · debug-signed for sideloading</span>
-        </div>` : `<p class="hint" style="margin:12px 0">The APK is not bundled in this deployment. Place the supplied APK in <code>public/download/homedeck.apk</code> to enable the download button, or build it from <code>android/</code>.</p>`}
+        </div>` : `<p class="hint" style="margin:12px 0">The APK is included in the release tarball / GitHub Release. For a source build, place it in <code>public/download/homedeck.apk</code> or build it from <code>android/</code>.</p>`}
         <p class="hint">Enable “Install unknown apps” for your browser when prompted. The app is also buildable with Android Studio or <code>./gradlew assembleDebug</code> (JDK 17+; a GitHub Actions workflow is included at <code>.github/workflows/android.yml</code>). For public distribution, sign a release build with your own keystore.</p>
       </div>`;
 

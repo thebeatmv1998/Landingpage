@@ -109,11 +109,15 @@ local/public URL failover, keeps an offline cache and offers themes, accent colo
 compact cards, grouping and a refresh interval. See `android/README.md` for build
 instructions (JDK 17 + Android SDK 35).
 
-A prebuilt **debug-signed APK is provided separately** (`homedeck.apk`, v1.1.0,
-Android 8.0+; not bundled in the server tarball). Place it in
-`public/download/homedeck.apk` to enable the download button in
-**My settings → Mobile app**. The app includes charts/detail screens and supports
-separate local and external HomeDeck server addresses with automatic failover.
+A prebuilt **debug-signed APK** (`homedeck.apk`, v1.1.2, Android 8.0+) is attached to
+the latest **GitHub Release** and also included in `homedeck-usenet.tar.gz` at
+`public/download/homedeck.apk`. Building the Docker image from that tarball enables the
+download button in **My settings → Mobile app**. The app includes charts/detail screens
+and supports separate local and external HomeDeck server addresses with automatic
+failover.
+
+A plain source checkout does not contain the APK; place it in
+`public/download/homedeck.apk` if you build from source.
 
 Tokens are stored hashed at rest (`device_tokens`), are sent only as
 `Authorization: Bearer hd_…` and are revoked by password/username changes and
@@ -214,6 +218,8 @@ image proxy, SSE stream, settings, uploads and config export/import.
 
 ### Unraid (tar.gz + docker build)
 
+Download `homedeck-usenet.tar.gz` from the latest GitHub Release (the APK is included):
+
 ```bash
 cd /mnt/user/appdata
 mkdir -p homedeck-src
@@ -221,6 +227,9 @@ tar -xzf homedeck-usenet.tar.gz -C homedeck-src
 cd homedeck-src
 docker build --pull -t homedeck-usenet:latest .
 ```
+
+The bundle can be rebuilt locally with `sh release.sh` (requires the APK at
+`public/download/homedeck.apk`).
 
 Then create the container via **Docker → Add Container** (manual fields) — see the
 `unraid/` folder for a ready-made template matching those fields.
