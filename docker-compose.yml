@@ -7,9 +7,9 @@ services:
       - "8080:8000"
     volumes:
       - homedeck-data:/data
-      # Docker socket lets the Docker widget show container states.
-      # Comment out if you don't want to expose it (the widget will just show offline).
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # The Docker socket is intentionally NOT mounted by default. It grants
+      # host-level control, and a ":ro" mount is not a security boundary for the
+      # Docker API. If you need the Docker widget, use a filtering socket proxy.
     environment:
       - UID=99
       - GID=100
@@ -18,6 +18,8 @@ services:
       # Set to 1 when running behind an HTTPS reverse proxy (affects OAuth redirects + secure cookies)
       - TRUST_PROXY=${TRUST_PROXY:-0}
       - SECURE_COOKIES=${SECURE_COOKIES:-0}
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   homedeck-data:

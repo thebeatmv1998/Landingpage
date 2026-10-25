@@ -65,7 +65,7 @@ docker images | grep homedeck
    - **Repository:** `homedeck:latest`
    - **Web-UI-Port:** `8080`
    - **Appdata:** `/mnt/user/appdata/homedeck` (Datenbank, Uploads, Verschlüsselungsschlüssel)
-   - **Docker-Socket** (read-only): aktiviert das Docker-Widget. Wer das nicht will, löscht diesen Eintrag.
+   - **Docker-Socket:** standardmäßig nicht gemountet (Host-Root-Risiko). Für das Docker-Widget einen filternden Socket-Proxy verwenden.
 5. **Apply** → Container startet. Über das Icon (WebUI) erreichst du das Dashboard.
 6. Beim ersten Aufruf legt deinen **Admin-Account** an — fertig! 🎉
 
@@ -146,7 +146,7 @@ Wenn HomeDeck über Nginx Proxy Manager / Swag / Caddy mit HTTPS erreichbar sein
 | --- | --- |
 | „Repository not found on Docker Hub“ beim Anlegen | Normal bei lokal gebauten Images — ignorieren. |
 | Container startet nicht, Port belegt | In der Unraid-Log nachsehen (`docker logs HomeDeck`); Port 8080 im Template ändern. |
-| Docker-Widget zeigt offline | Socket-Mount im Template prüfen; Widget-Test in Admin → Services → ⚡. Auf Unraid ist `/var/run/docker.sock` immer vorhanden. |
+| Docker-Widget zeigt offline | Standardmäßig kein Socket-Mount (Sicherheit). Für das Widget einen filternden Socket-Proxy einrichten; Widget-Test in Admin → Services → ⚡. |
 | Dienste „offline“ trotz laufendem Dienst | Statt `localhost` die **Unraid-LAN-IP** als URL verwenden (siehe Schritt 4). |
 | Nach Reverse-Proxy kein Login / OAuth schlägt fehl | `TRUST_PROXY=1` setzen, Container neu starten. |
 | Login-Seite lädt, aber nichts geht / alte Oberfläche | Browser-Cache leeren (Strg+Shift+R). |

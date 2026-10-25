@@ -58,7 +58,7 @@ Studio Ladybug or newer can import the `android/` folder directly.
 A debug-signed APK is delivered separately (not bundled in the HomeDeck server tarball):
 
 ```
-homedeck.apk   (v1.1.2, Android 8.0+, ~3.9 MB)
+homedeck.apk   (v1.1.3, Android 8.0+, ~3.9 MB)
 SHA-256: F2D5217849302FD771DC742C1647946B09B026F187DEDD375ED2A70F975D7660
 ```
 

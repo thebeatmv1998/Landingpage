@@ -39,6 +39,21 @@ object ImageLoader {
         return "${baseUrl.trimEnd('/')}/api/proxy/${service.id}$path"
     }
 
+    private fun sameOrigin(a: String, b: String): Boolean {
+        if (a.isEmpty() || b.isEmpty()) return false
+        return try {
+            val ua = URL(a)
+            val ub = URL(b)
+            val pa = if (ua.port != -1) ua.port else if (ua.protocol == "https") 443 else 80
+            val pb = if (ub.port != -1) ub.port else if (ub.protocol == "https") 443 else 80
+            ua.protocol.equals(ub.protocol, true) &&
+                ua.host.equals(ub.host, true) &&
+                pa == pb
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun load(view: ImageView, url: String, token: String, homeBase: String) {
         if (url.isEmpty()) {
             view.setImageDrawable(null)
@@ -58,10 +73,13 @@ object ImageLoader {
                     requestMethod = "GET"
                     connectTimeout = 8_000
                     readTimeout = 15_000
-                    instanceFollowRedirects = true
+                    // Do not follow redirects: the Authorization header must never
+                    // be forwarded to a target that was not checked up front.
+                    instanceFollowRedirects = false
                     useCaches = false
-                    // Never leak the bearer token to third-party image hosts.
-                    if (homeBase.isNotEmpty() && url.startsWith(homeBase.trimEnd('/'))) {
+                    // Never leak the bearer token to third-party image hosts. Exact
+                    // origin comparison avoids "home.example.com.evil.tld" bypasses.
+                    if (sameOrigin(url, homeBase)) {
                         setRequestProperty("Authorization", "Bearer $token")
                     }
                 }

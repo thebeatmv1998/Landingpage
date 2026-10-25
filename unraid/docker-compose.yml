@@ -8,9 +8,8 @@ services:
       - "8753:8000"
     volumes:
       - /mnt/user/appdata/homedeck:/data
-      # Docker-Socket für das Docker-Widget (Container-Status).
-      # Zeile entfernen, wenn das nicht gewünscht ist — das Widget zeigt dann offline.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Der Docker-Socket wird bewusst NICHT standardmäßig gemountet: Er gibt
+      # Host-Kontrolle. Für das Docker-Widget einen filternden Socket-Proxy nutzen.
     environment:
       - UID=99
       - GID=100
@@ -19,3 +18,5 @@ services:
       # Auf 1 setzen, wenn HomeDeck hinter einem HTTPS-Reverse-Proxy läuft:
       - TRUST_PROXY=0
       - SECURE_COOKIES=0
+    security_opt:
+      - no-new-privileges:true

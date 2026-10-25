@@ -75,7 +75,7 @@ authRouter.get('/meta', (req, res) => {
     needsSetup: usersCount === 0,
     version: config.version,
     publicUrl: config.publicUrl || '',
-    androidApk: { available: apkAvailable, url: '/download/homedeck.apk', version: '1.1.2' },
+    androidApk: { available: apkAvailable, url: '/download/homedeck.apk', version: '1.1.3' },
     sso: sso.enabled ? { enabled: true, label: sso.label } : { enabled: false, label: '' },
   });
 });

@@ -1,5 +1,6 @@
 package com.homedeck.app
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Build
@@ -50,7 +51,6 @@ class PairingActivity : AppCompatActivity() {
 
         intent?.data?.let { data ->
             linkInput.setText(data.toString())
-            if (intent.getBooleanExtra("auto", false)) pair()
         }
     }
 
@@ -156,6 +156,33 @@ class PairingActivity : AppCompatActivity() {
             setStatus("That doesn't look like a valid HomeDeck pairing link.", palette.bad)
             return
         }
+        val proceed = { doPair(link) }
+        if (link.serverUrl.startsWith("http://")) {
+            AlertDialog.Builder(this)
+                .setTitle("Insecure HTTP connection")
+                .setMessage("The device token will be sent over plain HTTP. Anyone on the network can capture it. Use HTTPS outside your LAN. Continue?")
+                .setPositiveButton("Continue") { _, _ -> confirmReplace(link, proceed) }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } else {
+            confirmReplace(link, proceed)
+        }
+    }
+
+    private fun confirmReplace(link: PairLink, proceed: () -> Unit) {
+        if (prefs.serverUrl.isNotEmpty() && prefs.serverUrl != link.serverUrl) {
+            AlertDialog.Builder(this)
+                .setTitle("Replace pairing?")
+                .setMessage("This phone is already paired with ${prefs.serverUrl}. Replace it with ${link.serverUrl}?")
+                .setPositiveButton("Replace") { _, _ -> proceed() }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } else {
+            proceed()
+        }
+    }
+
+    private fun doPair(link: PairLink) {
         scanButton.isEnabled = false
         pairButton.isEnabled = false
         setStatus("Pairing…", palette.muted)

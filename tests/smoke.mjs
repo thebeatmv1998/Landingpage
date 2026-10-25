@@ -437,6 +437,21 @@ async function main() {
   r = await call('/api/summary', { as: 'kid' });
   ok(!(r.json?.services || []).some((s) => s.name === 'Vaultwarden'), 'kid no longer sees restricted service');
 
+  // The SSE stream must apply the same group ACL as /api/summary.
+  const kidEs = await fetch(`${BASE}/api/stream`, { headers: { Cookie: jars.get('kid') } });
+  ok(kidEs.status === 200 && kidEs.headers.get('content-type')?.includes('event-stream'), 'kid SSE connects');
+  const kidReader = kidEs.body.getReader();
+  let kidGot = '';
+  const kidT0 = Date.now();
+  while (Date.now() - kidT0 < 5000 && !kidGot.includes('event: service')) {
+    const { value, done } = await kidReader.read();
+    if (done) break;
+    kidGot += dec.decode(value);
+  }
+  ok(kidGot.includes('event: service'), 'kid SSE receives visible service events');
+  ok(!kidGot.includes('"name":"Vaultwarden"'), 'kid SSE does not leak restricted services');
+  await kidReader.cancel().catch(() => {});
+
   console.log('\n— groups');
   r = await call('/api/groups');
   ok((r.json?.groups || []).some((g) => g.name === 'fam' && g.users === 1), 'group list shows fam');

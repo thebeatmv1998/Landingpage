@@ -287,7 +287,8 @@ object Api {
                 requestMethod = method
                 connectTimeout = 10_000
                 readTimeout = 20_000
-                instanceFollowRedirects = true
+                // Never forward the bearer token through an automatic redirect.
+                instanceFollowRedirects = false
                 useCaches = false
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("User-Agent", "HomeDeck-Android/1.0")
@@ -302,6 +303,7 @@ object Api {
                 conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             }
             val status = conn.responseCode
+            if (status in 300..399) throw ApiException("Unexpected server redirect — check the server URL", status)
             val stream = if (status in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader()?.use { it.readText() } ?: ""
             if (status !in 200..299) {

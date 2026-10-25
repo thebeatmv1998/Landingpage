@@ -278,7 +278,7 @@ export async function renderSettings(root, { navigate, tab: initialTab = 'profil
     const defaultUrl = state.meta?.publicUrl || location.origin;
     const apk = state.meta?.androidApk || {};
     const apkAvailable = apk.available === true;
-    const apkVersion = apk.version || '1.0.0';
+    const apkVersion = apk.version || '1.1.3';
     main.innerHTML = `
       <div class="panel">
         <h2>HomeDeck for Android</h2>

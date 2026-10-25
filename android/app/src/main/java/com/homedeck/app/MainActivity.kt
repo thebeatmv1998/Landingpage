@@ -117,7 +117,7 @@ class MainActivity : AppCompatActivity() {
     private fun handlePairLink(intent: Intent?): Boolean {
         val data = intent?.data ?: return false
         if (data.scheme != "homedeck" || data.host != "pair") return false
-        startActivity(Intent(this, PairingActivity::class.java).setData(data).putExtra("auto", true))
+        startActivity(Intent(this, PairingActivity::class.java).setData(data))
         finish()
         return true
     }

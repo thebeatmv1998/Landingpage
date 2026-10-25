@@ -49,7 +49,11 @@ apiRouter.get('/registry', requireAuth, (req, res) => {
 });
 
 apiRouter.get('/stream', requireAuth, (req, res) => {
-  const remove = runner.addClient(res);
+  const remove = runner.addClient(res, {
+    user: req.user,
+    sessionToken: req.sessionToken,
+    device: req.device,
+  });
   req.on('close', remove);
 });
 

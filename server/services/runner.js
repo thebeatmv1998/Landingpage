@@ -1,4 +1,5 @@
 import { stmts, db, getSetting } from '../core/db.js';
+import { getSessionWithUser } from '../auth/sessions.js';
 import { serviceCtx } from './http.js';
 import { serviceMeta } from './registry.js';
 import { safeJsonParse, nowMs, clampPollMs } from '../core/util.js';
@@ -304,7 +305,28 @@ class Runner {
   }
 
   // ------------------------------------------------------------------ SSE
-  addClient(res) {
+  // Resolve the current identity behind an SSE connection. Sessions and device
+  // tokens are re-checked so a logout/revocation also closes existing streams.
+  streamUser(res) {
+    try {
+      if (res.hdSessionToken) {
+        const found = getSessionWithUser(res.hdSessionToken);
+        return found?.user || null;
+      }
+      if (res.hdDeviceHash) {
+        const row = stmts.deviceByHash.get(res.hdDeviceHash);
+        if (!row) return null;
+        return stmts.userById.get(row.user_id) || null;
+      }
+    } catch { /* treat as revoked */ }
+    return null;
+  }
+
+  addClient(res, { user, sessionToken = null, device = null } = {}) {
+    if (!user) {
+      try { res.status(401).end(); } catch { /* ignore */ }
+      return () => {};
+    }
     // Guard against connection exhaustion / accidental reconnect storms.
     if (this.clients.size >= 200) {
       try { res.status(503).end(); } catch { /* ignore */ }
@@ -317,10 +339,13 @@ class Runner {
       'X-Accel-Buffering': 'no',
     });
     res.write('retry: 3000\n\n');
+    res.hdSessionToken = sessionToken;
+    res.hdDeviceHash = device?.token_hash || null;
     this.clients.add(res);
-    // initial burst of current state
-    for (const snap of this.snapshots.values()) {
-      this.writeEvent(res, 'service', snap);
+    // Initial burst: only services this user is allowed to see.
+    const visible = new Set(this.visibleServicesFor(user).map((s) => s.id));
+    for (const [id, snap] of this.snapshots) {
+      if (visible.has(id)) this.writeEvent(res, 'service', snap);
     }
     if (this.weather) this.writeEvent(res, 'weather', this.weather);
     return () => this.clients.delete(res);
@@ -333,11 +358,28 @@ class Runner {
   }
 
   broadcast(event, data) {
-    for (const res of this.clients) this.writeEvent(res, event, data);
+    for (const res of this.clients) {
+      const user = this.streamUser(res);
+      if (!user) {
+        try { res.end(); } catch { /* ignore */ }
+        this.clients.delete(res);
+        continue;
+      }
+      if (event === 'service' && data?.id != null
+        && !this.visibleServicesFor(user).some((s) => s.id === Number(data.id))) {
+        continue;
+      }
+      this.writeEvent(res, event, data);
+    }
   }
 
   heartbeat() {
     for (const res of this.clients) {
+      if (!this.streamUser(res)) {
+        try { res.end(); } catch { /* ignore */ }
+        this.clients.delete(res);
+        continue;
+      }
       try { res.write(': hb\n\n'); } catch { this.clients.delete(res); }
     }
   }

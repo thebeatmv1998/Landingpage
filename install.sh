@@ -2,7 +2,7 @@
 # HomeDeck – Build & Start für Docker-Hosts (z. B. Unraid-Konsole)
 # Verwendung:  sh install.sh
 # Optional:   PORT=8753 DATA=/mnt/user/appdata/homedeck PUID=99 PGID=100 sh install.sh
-#             SOCKET="" sh install.sh          (ohne Docker-Socket-Mount)
+#             SOCKET=/var/run/docker.sock sh install.sh   (opt-in Docker-Socket; host root risk!)
 set -e
 
 IMAGE=${IMAGE:-homedeck-usenet:latest}
@@ -13,7 +13,7 @@ PUID=${PUID:-99}
 PGID=${PGID:-100}
 UMASK=${UMASK:-022}
 TZ=${TZ:-Europe/Berlin}
-SOCKET=${SOCKET:-/var/run/docker.sock}
+SOCKET=${SOCKET:-}                                  # no Docker socket by default
 
 cd "$(dirname "$0")"
 

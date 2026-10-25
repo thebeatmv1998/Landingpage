@@ -18,7 +18,6 @@ docker build --pull -t homedeck-usenet:latest .
 docker run -d --name homedeck --restart unless-stopped \
   -p 8753:8000 \
   -v /mnt/user/appdata/homedeck:/data \
-  -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -e UID=99 -e GID=100 -e UMASK=022 -e TZ=Europe/Berlin \
   homedeck-usenet:latest
 ```
@@ -31,8 +30,10 @@ so files on the mounted volume are owned by that
 user instead of root; `UMASK` and `TZ` work as usual. See `install.sh` for a one-command
 build+run on any Docker host (defaults: host port 8753, image `homedeck-usenet:latest`).
 
-> The compose file mounts `/var/run/docker.sock` so the **Docker widget** can show container
-> states. Remove that line if you don't want to expose the socket.
+> The Docker socket is deliberately **not** mounted by default: it grants host-level
+> control, and a `:ro` mount is not a Docker API boundary. If you need the **Docker
+> widget**, use a filtering socket proxy (see `SECURITY-AUDIT-2026-10-25.md`) or mount
+> the socket manually only on a trusted host.
 
 ### Bare Node
 
@@ -81,7 +82,7 @@ npm start          # listens on :8080, data stored in ./data
 | **Stash** | scenes, images, galleries, performers, play stats |
 | **Tachidesk / Suwayomi** | library size, categories, unread, downloads |
 | **Vaultwarden** | status, user count (with admin token) |
-| **Docker** | running/stopped/unhealthy containers via the Docker socket or Unraid — **container icons** (Unraid template icon, else bundled dashboardicons), click to open the WebUI, one-click **update / restart / stop / start** |
+| **Docker** | running/stopped/unhealthy containers via an opt-in Docker socket/proxy or Unraid — **container icons** (Unraid template icon, else bundled dashboardicons), click to open the WebUI, one-click **update / restart / stop / start** |
 | **Generic** | any other app — up/down check + response time |
 
 All service credentials (API keys, passwords) are stored **AES-256-GCM encrypted** in the
@@ -109,7 +110,7 @@ local/public URL failover, keeps an offline cache and offers themes, accent colo
 compact cards, grouping and a refresh interval. See `android/README.md` for build
 instructions (JDK 17 + Android SDK 35).
 
-A prebuilt **debug-signed APK** (`homedeck.apk`, v1.1.2, Android 8.0+) is attached to
+A prebuilt **debug-signed APK** (`homedeck.apk`, v1.1.3, Android 8.0+) is attached to
 the latest **GitHub Release** and also included in `homedeck-usenet.tar.gz` at
 `public/download/homedeck.apk`. Building the Docker image from that tarball enables the
 download button in **My settings → Mobile app**. The app includes charts/detail screens
@@ -202,7 +203,7 @@ Done — it appears in the admin gallery, the forms and the dashboard.
 ```bash
 npm run mock    # starts mock versions of every service API on :9000
 npm run unit    # unit tests for helpers (no network)
-npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 286 assertions)
+npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 289 assertions)
 npm test        # unit + smoke
 ```
 
@@ -246,7 +247,8 @@ Then create the container via **Docker → Add Container** (manual fields) — s
   password. If it's unavailable, the widget/service shows an explanatory error instead of empty tiles.
 - Media artwork is streamed through `/api/proxy/<service>/...`, which only forwards to
   services configured in the dashboard and only for logged-in users.
-- The Docker connector auto-detects the socket (`/var/run/docker.sock`, or
+- If you explicitly mount a Docker socket (or a filtering proxy), the Docker connector
+  auto-detects it (`/var/run/docker.sock`, or
   `npipe:////./pipe/docker_engine` on Windows); override it in the service settings.
 - Weather uses [open-meteo.com](https://open-meteo.com) — no API key. Add one or more cities
   under **Settings → Administration → General** via the built-in **city / postal-code search**

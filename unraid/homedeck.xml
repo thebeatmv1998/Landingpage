@@ -50,17 +50,16 @@
       <ContainerDir>/data</ContainerDir>
       <Mode>rw</Mode>
     </Volume>
-    <Volume>
-      <HostDir>/var/run/docker.sock</HostDir>
-      <ContainerDir>/var/run/docker.sock</ContainerDir>
-      <Mode>ro</Mode>
-    </Volume>
+    <!--
+      The Docker socket is intentionally not mounted by default: it grants
+      host-level control. Use a filtering socket proxy if the Docker widget
+      is required.
+    -->
   </Data>
   <Environment/>
   <Labels/>
   <Config Name="Web-UI Port" Target="8000" Default="8753" Mode="tcp" Description="Host-Port → Container-Port 8000" Type="Port" Display="always" Required="true" Mask="false">8753</Config>
   <Config Name="Appdata (Datenbank, Uploads, Schlüssel)" Target="/data" Default="/mnt/user/appdata/homedeck" Mode="rw" Description="SQLite-Datenbank, Hintergrundbilder und Verschlüsselungsschlüssel — diesen Ordner sichern!" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/homedeck</Config>
-  <Config Name="Docker Socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Docker-Socket für das Docker-Widget (Container-Status). Kann entfernt werden." Type="Path" Display="always" Required="false" Mask="false">/var/run/docker.sock</Config>
   <Config Name="UID" Target="UID" Default="99" Mode="" Description="Benutzer-ID für die Dateien in /data (Unraid: nobody)" Type="Variable" Display="always" Required="false" Mask="false">99</Config>
   <Config Name="GID" Target="GID" Default="100" Mode="" Description="Gruppen-ID für die Dateien in /data (Unraid: users)" Type="Variable" Display="always" Required="false" Mask="false">100</Config>
   <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="Dateirechte für neu erzeugte Dateien" Type="Variable" Display="always" Required="false" Mask="false">022</Config>
