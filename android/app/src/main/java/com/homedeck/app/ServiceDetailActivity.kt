@@ -143,7 +143,12 @@ class ServiceDetailActivity : AppCompatActivity() {
                     } else {
                         titleView.text = service.name
                         subtitleView.text = "${service.category} Â· ${if (service.online) "online" else "offline"} Â· ${if (ServerResolver.isExternalActive(prefs)) "external" else "primary"}"
-                        render(service)
+                        try {
+                            render(service)
+                        } catch (t: Throwable) {
+                            android.util.Log.e("HomeDeck", "Service render failed", t)
+                            renderError("Could not render this service: ${t.message ?: "unknown error"}")
+                        }
                     }
                 }
             } catch (error: ApiException) {

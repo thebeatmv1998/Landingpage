@@ -257,10 +257,10 @@ class MainActivity : AppCompatActivity() {
                     if (isFinishing || isDestroyed) return@post
                     offlineMode = false
                     lastSummary = summary
-                    render(summary)
+                    safeRender(summary)
                     Reachability.probe(summary.services) {
                         if (!isFinishing && !isDestroyed) {
-                            lastSummary?.let { render(it) }
+                            lastSummary?.let { safeRender(it) }
                         }
                     }
                 }
@@ -297,13 +297,22 @@ class MainActivity : AppCompatActivity() {
             try {
                 val summary = Api.parseSummary(cached)
                 lastSummary = summary
-                render(summary)
+                safeRender(summary)
                 return
             } catch (_: Exception) {
                 // fall through to the error card
             }
         }
         renderError(message)
+    }
+
+    private fun safeRender(summary: Summary) {
+        try {
+            render(summary)
+        } catch (t: Throwable) {
+            android.util.Log.e("HomeDeck", "Dashboard render failed", t)
+            renderError("Could not draw the dashboard: ${t.message ?: "unknown error"}")
+        }
     }
 
     private fun render(summary: Summary) {

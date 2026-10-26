@@ -102,19 +102,30 @@ object Icons {
             ))
             var index = 0
             fun tryNext() {
-                val candidate = candidates.getOrNull(index++) ?: return
-                val url = ImageLoader.iconUrl(baseUrl, service, candidate)
-                if (url.isEmpty()) {
-                    tryNext()
-                    return
-                }
-                ImageLoader.load(image, url, token, baseUrl) { ok ->
-                    if (ok) {
-                        image.visibility = View.VISIBLE
-                        letter.visibility = View.GONE
-                    } else {
+                try {
+                    val candidate = candidates.getOrNull(index++) ?: return
+                    val url = ImageLoader.iconUrl(baseUrl, service, candidate)
+                    if (url.isEmpty()) {
                         tryNext()
+                        return
                     }
+                    ImageLoader.load(
+                        image,
+                        url,
+                        token,
+                        baseUrl,
+                        { ok ->
+                            if (ok) {
+                                image.visibility = View.VISIBLE
+                                letter.visibility = View.GONE
+                            } else {
+                                tryNext()
+                            }
+                        },
+                        maxPx = (sizeDp * 4).coerceIn(64, 256),
+                    )
+                } catch (_: Throwable) {
+                    // keep the monogram; an icon must never break the screen
                 }
             }
             tryNext()
