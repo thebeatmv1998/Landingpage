@@ -1,10 +1,14 @@
+import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { config } from './config.js';
+import { config, encryptSecret } from './config.js';
 import { safeJsonParse } from './util.js';
 
 export const db = new DatabaseSync(config.dbFile);
 db.exec('PRAGMA journal_mode = WAL');
 db.exec('PRAGMA foreign_keys = ON');
+for (const file of [config.dbFile, `${config.dbFile}-wal`, `${config.dbFile}-shm`]) {
+  try { fs.chmodSync(file, 0o600); } catch { /* not created yet / Windows */ }
+}
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -179,6 +183,17 @@ export const stmts = {
   settingSet: db.prepare(`INSERT INTO settings (key, value) VALUES (:key, :value)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value`),
 };
+
+// Upgrade TOTP secrets written by pre-v1.1.4 releases to the same AES-GCM
+// envelope used for service credentials.
+try {
+  const rows = db.prepare("SELECT id, totp_secret FROM users WHERE totp_secret <> ''").all();
+  for (const row of rows) {
+    if (!String(row.totp_secret).startsWith('enc1:')) {
+      db.prepare('UPDATE users SET totp_secret = ? WHERE id = ?').run(encryptSecret(row.totp_secret), row.id);
+    }
+  }
+} catch { /* do not make startup fail on a legacy/corrupt row */ }
 
 export function getUserByName(username) { return stmts.userByName.get(String(username ?? '').trim()) || null; }
 export function getUserById(id) { return stmts.userById.get(id) || null; }

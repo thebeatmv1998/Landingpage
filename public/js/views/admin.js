@@ -465,11 +465,13 @@ export async function renderAdmin(root, { navigate, tab: initialTab = 'services'
           <label class="field" style="display:flex;align-items:center;gap:10px"><span class="switch"><input type="checkbox" id="o-enabled" ${s.enabled ? 'checked' : ''}><span class="knob"></span></span><span>Enable SSO login</span></label>
           <label class="field"><span>Button label</span><input class="input" id="o-label" value="${esc(s.label || 'Single Sign-On')}"></label>
           <label class="field"><span>Client ID</span><input class="input" id="o-cid" value="${esc(s.clientId || '')}"></label>
-          <label class="field"><span>Client secret</span><input class="input" id="o-csec" type="password" value="${esc(s.clientSecret || '')}" autocomplete="off"></label>
+          <label class="field"><span>Client secret ${s.hasClientSecret ? '<span style="color:var(--faint)">(saved — leave blank to keep)</span>' : ''}</span><input class="input" id="o-csec" type="password" value="" placeholder="${s.hasClientSecret ? 'unchanged' : ''}" autocomplete="off"></label>
         </div>
         <div>
           <label class="field"><span>Authorization URL</span><input class="input" id="o-auth" value="${esc(s.authUrl || '')}" placeholder="https://sso.example.com/application/o/homedeck/authorize"></label>
           <label class="field"><span>Token URL</span><input class="input" id="o-token" value="${esc(s.tokenUrl || '')}" placeholder="https://sso.example.com/application/o/homedeck/token"></label>
+          <label class="field"><span>Issuer</span><input class="input" id="o-issuer" value="${esc(s.issuer || '')}" placeholder="https://sso.example.com/application/o/homedeck"></label>
+          <label class="field"><span>JWKS URL (optional if discovery works)</span><input class="input" id="o-jwks" value="${esc(s.jwksUrl || '')}" placeholder="https://sso.example.com/application/o/homedeck/jwks"></label>
           <label class="field"><span>Userinfo URL (optional)</span><input class="input" id="o-userinfo" value="${esc(s.userInfoUrl || '')}" placeholder="https://…/userinfo"></label>
           <label class="field"><span>Scopes</span><input class="input" id="o-scopes" value="${esc(s.scopes || 'openid profile email')}"></label>
           <label class="field"><span>Username claim</span><input class="input" id="o-unf" value="${esc(s.usernameField || 'preferred_username')}"></label>
@@ -480,18 +482,22 @@ export async function renderAdmin(root, { navigate, tab: initialTab = 'services'
 
     main.querySelector('#o-save').addEventListener('click', async () => {
       try {
-        const res = await API.saveSettings('sso', {
+        const payload = {
           enabled: main.querySelector('#o-enabled').checked,
           label: main.querySelector('#o-label').value,
           clientId: main.querySelector('#o-cid').value,
-          clientSecret: main.querySelector('#o-csec').value,
           authUrl: main.querySelector('#o-auth').value,
           tokenUrl: main.querySelector('#o-token').value,
+          issuer: main.querySelector('#o-issuer').value.trim(),
+          jwksUrl: main.querySelector('#o-jwks').value.trim(),
           userInfoUrl: main.querySelector('#o-userinfo').value,
           scopes: main.querySelector('#o-scopes').value,
           usernameField: main.querySelector('#o-unf').value,
           autoCreate: main.querySelector('#o-autocreate').checked,
-        });
+        };
+        const secret = main.querySelector('#o-csec').value;
+        if (secret) payload.clientSecret = secret;
+        const res = await API.saveSettings('sso', payload);
         state.settings.sso = res.sso;
         toast('SSO settings saved', 'success');
       } catch (err) { toast(err.message, 'error'); }
@@ -750,14 +756,14 @@ export async function renderAdmin(root, { navigate, tab: initialTab = 'services'
 
     main.querySelector('#g-backup').addEventListener('click', () => {
       const body = h(`<div>
-        <label class="field"><span>Passphrase (min. 8 characters)</span><input class="input" id="bk-pass" type="password" autocomplete="new-password"></label>
+        <label class="field"><span>Passphrase (min. 12 characters)</span><input class="input" id="bk-pass" type="password" autocomplete="new-password"></label>
         <p class="hint">Includes service credentials, encrypted with this passphrase. Keep it safe — it cannot be recovered.</p>
       </div>`);
       const ok = h(`<button class="btn btn-primary">${icon('lock')} Download backup</button>`);
       const m = modal({ title: 'Encrypted backup', body, footer: [ok] });
       ok.addEventListener('click', async () => {
         const pass = body.querySelector('#bk-pass').value;
-        if (pass.length < 8) return toast('Passphrase must be at least 8 characters', 'error');
+        if (pass.length < 12) return toast('Passphrase must be at least 12 characters', 'error');
         ok.disabled = true;
         try {
           const backup = await API.backup({ passphrase: pass });

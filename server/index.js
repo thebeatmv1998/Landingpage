@@ -10,7 +10,10 @@ import { apiRouter } from './routes/api.js';
 import { runner } from './services/runner.js';
 
 const app = express();
-if (config.trustProxy) app.set('trust proxy', true);
+if (config.trustProxy) app.set('trust proxy', config.trustProxyHops);
+if (config.trustProxy && !config.publicUrl) {
+  console.warn('[security] TRUST_PROXY is enabled without PUBLIC_URL; set PUBLIC_URL to pin OAuth/pairing URLs.');
+}
 
 app.disable('x-powered-by');
 

@@ -13,13 +13,20 @@ services:
     environment:
       - UID=99
       - GID=100
-      - UMASK=022
+      - UMASK=077
       - TZ=Europe/Berlin
       # Set to 1 when running behind an HTTPS reverse proxy (affects OAuth redirects + secure cookies)
       - TRUST_PROXY=${TRUST_PROXY:-0}
       - SECURE_COOKIES=${SECURE_COOKIES:-0}
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - SETUID
+      - SETGID
 
 volumes:
   homedeck-data:

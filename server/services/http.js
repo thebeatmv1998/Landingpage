@@ -38,6 +38,11 @@ export function serviceCtx(serviceRow) {
 }
 
 export const IMG_LIMIT = 8 * 1024 * 1024;
+// Raster-only allowlist. Deliberately excludes SVG: the proxy is same-origin and
+// a top-level SVG document can execute script in the HomeDeck origin.
+const IMAGE_TYPES = new Set([
+  'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp',
+]);
 
 // Audiobookshelf cover art needs a Bearer token. API-key setups already have
 // one; username/password setups need a login token for the image proxy too.
@@ -85,8 +90,10 @@ export async function fetchImage(serviceRow, path) {
     throw new Error('Could not fetch image: ' + (cause || err?.message || 'unknown error'));
   }
   if (!res.ok) throw new Error(`Upstream returned HTTP ${res.status}`);
-  const type = res.headers.get('content-type') || 'application/octet-stream';
-  if (!type.startsWith('image/')) throw new Error('Not an image response');
+  const type = String(res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  if (!IMAGE_TYPES.has(type)) throw new Error('Unsupported image type');
+  const declared = Number(res.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > IMG_LIMIT) throw new Error('Image too large');
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length > IMG_LIMIT) throw new Error('Image too large');
   return { buf, type };

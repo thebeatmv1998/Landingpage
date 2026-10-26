@@ -397,6 +397,8 @@ async function main() {
   ok(r.status === 200 && r.headers.get('content-type') === 'image/png', 'proxy streams Jellyfin art');
   ok(imgBuf.length > 8 && imgBuf[0] === 0x89 && imgBuf[1] === 0x50 && imgBuf[2] === 0x4e && imgBuf[3] === 0x47,
     `proxy bytes intact (PNG magic, ${imgBuf.length} bytes) — no UTF-8 corruption`);
+  r = await fetch(`${BASE}/api/proxy/${byName['Jellyfin'].id}/Items/svg/Images/Primary`, { headers: { Cookie: jars.get('admin') } });
+  ok(r.status === 502, 'proxy rejects SVG/active image types');
   r = await fetch(`${BASE}/api/proxy/${byName['Sonarr'].id}/api/v3/mediacover/1/poster.jpg`, { headers: { Cookie: jars.get('admin') } });
   ok(r.status === 200 && (r.headers.get('content-type') || '').startsWith('image/'), 'proxy streams Sonarr calendar poster (API key forwarded)');
   r = await fetch(`${BASE}/api/proxy/99999/x`, { headers: { Cookie: jars.get('admin') } });
@@ -421,12 +423,12 @@ async function main() {
   await reader.cancel().catch(() => {});
 
   console.log('\n— user management & groups');
-  r = await call('/api/users', { method: 'POST', body: { username: 'kid', password: 'kidspass1', role: 'user', groupName: 'fam' } });
+  r = await call('/api/users', { method: 'POST', body: { username: 'kid', password: 'kidspass1234', role: 'user', groupName: 'fam' } });
   ok(r.status === 200, 'create user');
   const kidId = r.json?.user?.id;
   r = await call(`/api/services/${ids['Vaultwarden']}`, { method: 'PUT', body: { allowed_groups: ['fam'] } });
   ok(r.status === 200, 'restrict service to group fam');
-  r = await call('/api/login', { method: 'POST', as: 'kid', body: { username: 'kid', password: 'kidspass1' } });
+  r = await call('/api/login', { method: 'POST', as: 'kid', body: { username: 'kid', password: 'kidspass1234' } });
   ok(r.status === 200, 'kid login');
   r = await call(`/api/services/${ids['Jellyfin']}/action`, { method: 'POST', as: 'kid', body: { action: 'stop', value: 'test-session' } });
   ok(r.status === 200 && r.json?.ok === true, 'non-admin can stop a Jellyfin playback session');
@@ -526,6 +528,10 @@ async function main() {
   ok(r.json?.appearance?.bgSolid === '#101010', 'settings readable with defaults merged');
   r = await call('/api/settings/sso', { as: 'kid', method: 'PUT', body: { enabled: true } });
   ok(r.status === 403, 'non-admin cannot change sso');
+  r = await call('/api/settings/sso', { method: 'PUT', body: { clientSecret: 'test-client-secret' } });
+  ok(r.status === 200 && !r.json?.sso?.clientSecret && r.json?.sso?.hasClientSecret === true, 'SSO client secret is never returned in the update response');
+  r = await call('/api/settings');
+  ok(!r.json?.sso?.clientSecret && r.json?.sso?.hasClientSecret === true, 'SSO client secret is masked in settings');
   r = await call('/api/alerts/test', { method: 'POST' });
   ok(r.status === 400, 'alerts test requires a webhook URL');
   r = await call('/api/settings/alerts', { method: 'PUT', body: { enabled: true, url: 'http://127.0.0.1:9000/webhook', diskPct: 90, onDown: true, onUp: true, onDisk: true } });

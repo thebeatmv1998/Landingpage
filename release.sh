@@ -15,7 +15,7 @@ tar -czf "$OUT" \
   --exclude=android/app/build \
   --exclude=android/.gradle \
   server public mock tests unraid .github android \
-  release.sh package.json package-lock.json Dockerfile README.md LICENSE \
+  release.sh package.json package-lock.json Dockerfile README.md LICENSE SECURITY.md \
   .editorconfig .env.example docker-compose.yml install.sh entrypoint.sh .dockerignore
 
 # Fail loudly if the APK did not make it into the bundle.

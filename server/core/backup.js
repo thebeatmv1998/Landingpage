@@ -1,10 +1,11 @@
 // Passphrase-encrypted configuration backups (services incl. secrets + settings).
 import crypto from 'node:crypto';
 
-const N = 16384, R = 8, P = 1;
+const N = 65536, R = 8, P = 1;
+const MAXMEM = 256 * 1024 * 1024;
 
-function deriveKey(passphrase, salt) {
-  return crypto.scryptSync(String(passphrase), salt, 32, { N, r: R, p: P });
+function deriveKey(passphrase, salt, n = N) {
+  return crypto.scryptSync(String(passphrase), salt, 32, { N: n, r: R, p: P, maxmem: MAXMEM });
 }
 
 export function encryptBackup(payload, passphrase) {
@@ -14,9 +15,10 @@ export function encryptBackup(payload, passphrase) {
   const data = Buffer.concat([cipher.update(JSON.stringify(payload), 'utf8'), cipher.final()]);
   return {
     format: 'homedeck-backup',
-    version: 1,
+    version: 2,
     createdAt: new Date().toISOString(),
     kdf: 'scrypt',
+    n: N,
     salt: salt.toString('base64'),
     iv: iv.toString('base64'),
     tag: cipher.getAuthTag().toString('base64'),
@@ -29,9 +31,12 @@ export function decryptBackup(obj, passphrase) {
     throw new Error('Not a HomeDeck backup file');
   }
   try {
+    // v1 backups did not store N and used 16384; accept them for migration.
+    const n = Number(obj.n) || 16384;
+    if (!Number.isInteger(n) || n < 16384 || n > 131072) throw new Error('unsupported KDF parameters');
     const decipher = crypto.createDecipheriv(
       'aes-256-gcm',
-      deriveKey(passphrase, Buffer.from(obj.salt, 'base64')),
+      deriveKey(passphrase, Buffer.from(obj.salt, 'base64'), n),
       Buffer.from(obj.iv, 'base64'),
     );
     decipher.setAuthTag(Buffer.from(obj.tag, 'base64'));

@@ -1,6 +1,7 @@
 package com.homedeck.app
 
 import android.net.Uri
+import java.net.URL
 
 data class Stat(val label: String, val value: String)
 
@@ -129,12 +130,40 @@ data class PairResult(
 data class PairLink(val serverUrl: String, val code: String)
 
 object PairLinks {
+    /** Local/private hosts may use HTTP for LAN deployments; everything else requires HTTPS. */
+    fun isLocalHost(host: String): Boolean {
+        val h = host.trim().lowercase().removePrefix("[").removeSuffix("]")
+        if (h == "localhost" || h == "::1") return true
+        if (h.endsWith(".local") || h.endsWith(".lan") || h.endsWith(".internal") || h.endsWith(".home.arpa")) return true
+        if (!h.contains(".") && !h.contains(":")) return true // single-label LAN host, e.g. "tower"
+        if (h.contains(":") && (h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd"))) return true
+        val parts = h.split('.')
+        if (parts.size != 4) return false
+        val nums = parts.mapNotNull { it.toIntOrNull() }
+        if (nums.size != 4 || nums.any { it !in 0..255 }) return false
+        return nums[0] == 10 ||
+            (nums[0] == 172 && nums[1] in 16..31) ||
+            (nums[0] == 192 && nums[1] == 168) ||
+            nums[0] == 127 ||
+            (nums[0] == 169 && nums[1] == 254)
+    }
+
+    fun isAllowedHttp(url: String): Boolean {
+        return try {
+            val u = URL(url)
+            u.protocol == "http" && isLocalHost(u.host)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun parse(raw: String): PairLink? {
         val uri = try { Uri.parse(raw.trim()) } catch (_: Exception) { return null }
         if (uri.scheme != "homedeck" || uri.host != "pair") return null
         val server = uri.getQueryParameter("url")?.trim()?.trimEnd('/') ?: return null
         val code = uri.getQueryParameter("code")?.trim() ?: return null
         if (!server.startsWith("http://") && !server.startsWith("https://")) return null
+        if (server.startsWith("http://") && !isAllowedHttp(server)) return null
         if (code.length < 20) return null
         return PairLink(server, code)
     }

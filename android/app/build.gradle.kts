@@ -11,13 +11,29 @@ android {
         applicationId = "com.homedeck.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.1.3"
+        versionCode = 6
+        versionName = "1.1.4"
+    }
+
+    signingConfigs {
+        create("release") {
+            val storePath = System.getenv("HOMEDECK_KEYSTORE")
+            val storePass = System.getenv("HOMEDECK_KEYSTORE_PASSWORD")
+            val alias = System.getenv("HOMEDECK_KEY_ALIAS") ?: "homedeck"
+            val keyPass = System.getenv("HOMEDECK_KEY_PASSWORD") ?: storePass
+            if (!storePath.isNullOrBlank() && !storePass.isNullOrBlank()) {
+                storeFile = file(storePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

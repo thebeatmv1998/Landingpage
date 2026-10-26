@@ -13,10 +13,17 @@ services:
     environment:
       - UID=99
       - GID=100
-      - UMASK=022
+      - UMASK=077
       - TZ=Europe/Berlin
       # Auf 1 setzen, wenn HomeDeck hinter einem HTTPS-Reverse-Proxy läuft:
       - TRUST_PROXY=0
       - SECURE_COOKIES=0
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - SETUID
+      - SETGID

@@ -244,14 +244,30 @@ export function csrfGuard(req, res, next) {
 
 // Login rate limiting (in-memory, per IP and per username)
 const attempts = new Map(); // key -> {count, resetAt}
+const ATTEMPTS_MAX = 10_000;
+
+function pruneAttempts(now = Date.now()) {
+  for (const [key, entry] of attempts) {
+    if (entry.resetAt < now) attempts.delete(key);
+  }
+  // Hard cap for distributed/spoofed source addresses.
+  while (attempts.size >= ATTEMPTS_MAX) {
+    const oldest = attempts.keys().next().value;
+    if (!oldest) break;
+    attempts.delete(oldest);
+  }
+}
+setInterval(() => pruneAttempts(), 5 * 60 * 1000).unref();
+
 export function rateLimit(kind, max, windowMs) {
   return (req, res, next) => {
     const ip = req.ip || req.socket?.remoteAddress || 'unknown';
-    const ident = kind === 'login-user' ? `${req.body?.username || ''}`.toLowerCase() : '';
+    const ident = kind === 'login-user' ? String(req.body?.username || '').slice(0, 120).toLowerCase() : '';
     const key = `${kind}:${ip}${ident ? ':' + ident : ''}`;
     const now = Date.now();
     let entry = attempts.get(key);
     if (!entry || entry.resetAt < now) {
+      pruneAttempts(now);
       entry = { count: 0, resetAt: now + windowMs };
       attempts.set(key, entry);
     }

@@ -4,7 +4,7 @@ import path from 'node:path';
 import express from 'express';
 import QRCode from 'qrcode';
 import { stmts, db, getUserByName, getUserById } from '../core/db.js';
-import { config, secretKey, rootDir } from '../core/config.js';
+import { config, secretKey, rootDir, encryptSecret, decryptSecret } from '../core/config.js';
 import { nowMs } from '../core/util.js';
 import { hashPassword, verifyPassword, passwordIssues } from './passwords.js';
 import { generateTotpSecret, verifyTotp, otpauthUri } from './totp.js';
@@ -75,7 +75,7 @@ authRouter.get('/meta', (req, res) => {
     needsSetup: usersCount === 0,
     version: config.version,
     publicUrl: config.publicUrl || '',
-    androidApk: { available: apkAvailable, url: '/download/homedeck.apk', version: '1.1.3' },
+    androidApk: { available: apkAvailable, url: '/download/homedeck.apk', version: '1.1.4' },
     sso: sso.enabled ? { enabled: true, label: sso.label } : { enabled: false, label: '' },
   });
 });
@@ -134,7 +134,7 @@ authRouter.post('/login/totp', rateLimit('totp', 15, 10 * 60 * 1000), (req, res)
   if (!userId) return res.status(401).json({ error: 'Login session expired — start again' });
   const user = getUserById(userId);
   if (!user || !user.totp_enabled) return res.status(401).json({ error: 'Invalid login state' });
-  if (!verifyTotp(user.totp_secret, code)) return res.status(401).json({ error: 'Invalid verification code' });
+  if (!verifyTotp(decryptSecret(user.totp_secret), code)) return res.status(401).json({ error: 'Invalid verification code' });
   const token = createSession(user.id, req.headers['user-agent'], true);
   setSessionCookie(res, token, config.sessionTtlRememberHours * 3600);
   audit(req, 'login_totp', '', user);
@@ -210,7 +210,7 @@ authRouter.post('/me/totp/setup', requireAuth, async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'Password is incorrect' });
   }
   const secret = generateTotpSecret();
-  stmts.userSetTotp.run({ secret, enabled: 0, id: req.user.id });
+  stmts.userSetTotp.run({ secret: encryptSecret(secret), enabled: 0, id: req.user.id });
   const uri = otpauthUri(secret, req.user.username);
   const qr = await QRCode.toDataURL(uri, { margin: 1, width: 240 });
   audit(req, 'totp_setup');
@@ -220,7 +220,7 @@ authRouter.post('/me/totp/setup', requireAuth, async (req, res) => {
 authRouter.post('/me/totp/enable', requireAuth, (req, res) => {
   const code = req.body?.code;
   if (!req.user.totp_secret) return res.status(400).json({ error: 'Run setup first' });
-  if (!verifyTotp(req.user.totp_secret, code)) return res.status(401).json({ error: 'Invalid code — check your authenticator' });
+  if (!verifyTotp(decryptSecret(req.user.totp_secret), code)) return res.status(401).json({ error: 'Invalid code — check your authenticator' });
   stmts.userSetTotp.run({ secret: req.user.totp_secret, enabled: 1, id: req.user.id });
   const recoveryCodes = generateRecoveryCodes(req.user.id);
   audit(req, 'totp_enabled', `${recoveryCodes.length} recovery codes`);
@@ -232,7 +232,7 @@ authRouter.post('/me/totp/disable', requireAuth, async (req, res) => {
     const ok = await verifyPassword(req.body?.password || '', req.user.pass_hash);
     if (!ok) return res.status(401).json({ error: 'Password is incorrect' });
   }
-  if (req.user.totp_enabled && !verifyTotp(req.user.totp_secret, req.body?.code)) {
+  if (req.user.totp_enabled && !verifyTotp(decryptSecret(req.user.totp_secret), req.body?.code)) {
     return res.status(401).json({ error: 'Invalid verification code' });
   }
   stmts.userSetTotp.run({ secret: '', enabled: 0, id: req.user.id });
@@ -376,11 +376,11 @@ authRouter.delete('/users/:id', requireAdmin, (req, res) => {
 // ---------------------------------------------------------------------------
 // OAuth2 / OIDC
 // ---------------------------------------------------------------------------
-authRouter.get('/oauth/start', (req, res) => {
+authRouter.get('/oauth/start', rateLimit('oauth-start', 30, 10 * 60 * 1000), (req, res) => {
   const cfg = ssoConfig();
   if (!cfg.enabled) return res.status(404).send('SSO is not enabled');
-  const { state, codeChallenge } = createOAuthState(res, req.query.redirect || '/');
-  const url = buildAuthorizeUrl(cfg, state, oauthRedirectUri(req), codeChallenge);
+  const { state, codeChallenge, nonce } = createOAuthState(res, req.query.redirect || '/');
+  const url = buildAuthorizeUrl(cfg, state, oauthRedirectUri(req), codeChallenge, nonce);
   res.redirect(url);
 });
 
@@ -394,7 +394,7 @@ authRouter.get('/oauth/callback', async (req, res) => {
     clearOAuthState(res);
     if (!code || !entry) return fail('Invalid or expired SSO state');
     const tokens = await exchangeCode(cfg, String(code), oauthRedirectUri(req), entry.verifier);
-    const profile = await fetchProfile(cfg, tokens);
+    const profile = await fetchProfile(cfg, tokens, { nonce: entry.nonce });
     const user = await resolveSsoUser(tokens, profile, {
       createUser: ({ username, displayName, oauthProvider, oauthSub }) => {
         const info = stmts.userInsert.run({

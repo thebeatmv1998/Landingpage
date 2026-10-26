@@ -62,7 +62,7 @@
   <Config Name="Appdata (Datenbank, Uploads, Schlüssel)" Target="/data" Default="/mnt/user/appdata/homedeck" Mode="rw" Description="SQLite-Datenbank, Hintergrundbilder und Verschlüsselungsschlüssel — diesen Ordner sichern!" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/homedeck</Config>
   <Config Name="UID" Target="UID" Default="99" Mode="" Description="Benutzer-ID für die Dateien in /data (Unraid: nobody)" Type="Variable" Display="always" Required="false" Mask="false">99</Config>
   <Config Name="GID" Target="GID" Default="100" Mode="" Description="Gruppen-ID für die Dateien in /data (Unraid: users)" Type="Variable" Display="always" Required="false" Mask="false">100</Config>
-  <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="Dateirechte für neu erzeugte Dateien" Type="Variable" Display="always" Required="false" Mask="false">022</Config>
+  <Config Name="UMASK" Target="UMASK" Default="077" Mode="" Description="Dateirechte für neu erzeugte Dateien (077 = nur App-Benutzer)" Type="Variable" Display="always" Required="false" Mask="false">077</Config>
   <Config Name="TZ" Target="TZ" Default="Europe/Berlin" Mode="" Description="Zeitzone" Type="Variable" Display="always" Required="false" Mask="false">Europe/Berlin</Config>
   <Config Name="TRUST_PROXY" Target="TRUST_PROXY" Default="0" Mode="" Description="Auf 1 setzen, wenn HomeDeck hinter einem HTTPS-Reverse-Proxy läuft (wichtig für OAuth/SSO)." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
   <Config Name="SECURE_COOKIES" Target="SECURE_COOKIES" Default="0" Mode="" Description="Auf 1 setzen, wenn HomeDeck ausschließlich über HTTPS erreichbar ist." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>

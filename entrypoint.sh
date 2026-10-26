@@ -1,26 +1,32 @@
 #!/bin/sh
 # HomeDeck entrypoint — honors linuxserver-style container conventions:
-#   UID   (or PUID) : user id to run as        (default: 0 = root)
-#   GID   (or PGID) : group id                 (default: same as PUID)
-#   UMASK           : umask for created files  (default: 022)
+#   UID   (or PUID) : user id to run as        (default: 99 = nobody)
+#   GID   (or PGID) : group id                 (default: 100 = users)
+#   UMASK           : umask for created files  (default: 077)
 #   TZ              : timezone (Node reads it directly, nothing to do here)
 set -e
 
 PUID=${PUID:-$(printenv UID || true)}
 PGID=${PGID:-$(printenv GID || true)}
-PUID=${PUID:-0}
-PGID=${PGID:-$PUID}
-UMASK_VAL=${UMASK:-022}
+PUID=${PUID:-99}
+PGID=${PGID:-100}
+UMASK_VAL=${UMASK:-077}
 
 umask "$UMASK_VAL"
 
+# Running the container with an explicit non-root user: do not try to chown.
+if [ "$(id -u)" != "0" ]; then
+  exec "$@"
+fi
+
 if [ "$PUID" = "0" ]; then
-  # run as root, nothing to prepare
+  # explicit root opt-in; nothing to prepare
   exec "$@"
 fi
 
 mkdir -p /data
 chown -R "$PUID:$PGID" /data
+chmod 700 /data
 
 if [ -S /var/run/docker.sock ]; then
   if su-exec "$PUID:$PGID" test -r /var/run/docker.sock 2>/dev/null; then

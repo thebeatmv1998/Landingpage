@@ -88,6 +88,8 @@ apiRouter.get('/proxy/:serviceId/*', requireAuth, wrap(async (req, res) => {
     const { buf, type } = await fetchImage(svc, '/' + tail);
     res.setHeader('Content-Type', type);
     res.setHeader('Cache-Control', 'private, max-age=300');
+    // Defense in depth for any future image parser / browser behavior.
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     res.send(buf);
   } catch (err) {
     res.status(502).json({ error: err.message });
@@ -339,7 +341,9 @@ apiRouter.get('/settings', requireAuth, (req, res) => {
     general: { ...getSetting('general', {}), sso: undefined },
   };
   if (req.user.role === 'admin') {
-    out.sso = getSetting('sso', {});
+    const sso = getSetting('sso', {});
+    const { clientSecret, ...safeSso } = sso;
+    out.sso = { ...safeSso, hasClientSecret: !!clientSecret };
     out.alerts = getSetting('alerts', {});
   }
   res.json(out);
@@ -354,6 +358,10 @@ apiRouter.put('/settings/:key', requireAdmin, (req, res) => {
   const merged = deepMerge(getSetting(req.params.key, {}), patch);
   setSetting(req.params.key, merged);
   audit(req, 'settings_updated', req.params.key);
+  if (req.params.key === 'sso') {
+    const { clientSecret, ...safeSso } = merged;
+    return res.json({ sso: { ...safeSso, hasClientSecret: !!clientSecret } });
+  }
   res.json({ [req.params.key]: merged });
 });
 
@@ -425,7 +433,7 @@ apiRouter.post('/settings/import', requireAdmin, (req, res) => {
 // ---------------------------------------------------------------------------
 apiRouter.post('/settings/backup', requireAdmin, (req, res) => {
   const passphrase = String(req.body?.passphrase || '');
-  if (passphrase.length < 8) return res.status(400).json({ error: 'Passphrase must be at least 8 characters' });
+  if (passphrase.length < 12) return res.status(400).json({ error: 'Passphrase must be at least 12 characters' });
   const services = stmts.servicesAll.all().map((r) => ({
     type: r.type, name: r.name, url: r.url, fallback_url: r.fallback_url || '', auto_switch: !!r.auto_switch,
     category: r.category, icon_url: r.icon_url,
@@ -454,7 +462,7 @@ apiRouter.post('/settings/backup', requireAdmin, (req, res) => {
 
 apiRouter.post('/settings/restore', requireAdmin, (req, res) => {
   const passphrase = String(req.body?.passphrase || '');
-  if (passphrase.length < 8) return res.status(400).json({ error: 'Passphrase is required' });
+  if (passphrase.length < 12) return res.status(400).json({ error: 'Passphrase is required (min. 12 characters)' });
   let payload;
   try { payload = decryptBackup(req.body?.backup, passphrase); }
   catch (err) { return res.status(400).json({ error: err.message }); }

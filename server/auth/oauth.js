@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { getSetting } from '../core/db.js';
 import { config } from '../core/config.js';
 import { joinUrl, fetchJson, genToken, timingSafeEqualStr } from '../core/util.js';
@@ -16,6 +17,8 @@ export function ssoConfig() {
     authUrl: sso.authUrl || '',
     tokenUrl: sso.tokenUrl || '',
     userInfoUrl: sso.userInfoUrl || '',
+    issuer: sso.issuer || '',
+    jwksUrl: sso.jwksUrl || '',
     scopes: sso.scopes || 'openid profile email',
     usernameField: sso.usernameField || 'preferred_username',
     autoCreate: sso.autoCreate !== false,
@@ -24,9 +27,11 @@ export function ssoConfig() {
   };
 }
 
-const pendingStates = new Map(); // state -> {redirect, verifier, expiresAt}
+const pendingStates = new Map(); // state -> {redirect, verifier, nonce, expiresAt}
 const STATE_TTL = 10 * 60 * 1000;
+const STATE_MAX = 1000;
 const STATE_COOKIE = 'hd_oauth_state';
+const jwksCache = new Map(); // URL -> RemoteJWKSet (jose caches the keys internally)
 
 function readStateCookie(req) {
   const header = req.headers?.cookie;
@@ -51,15 +56,23 @@ function appendSetCookie(res, value) {
 // The state is bound to the initiating browser via an HttpOnly cookie and carries
 // a PKCE verifier, so a forged or replayed callback can't complete a login.
 export function createOAuthState(res, redirect) {
-  for (const [k, v] of pendingStates) if (v.expiresAt < Date.now()) pendingStates.delete(k);
+  const now = Date.now();
+  for (const [k, v] of pendingStates) if (v.expiresAt < now) pendingStates.delete(k);
+  // Never let an unauthenticated start endpoint grow this map without bound.
+  while (pendingStates.size >= STATE_MAX) {
+    const oldest = pendingStates.keys().next().value;
+    if (!oldest) break;
+    pendingStates.delete(oldest);
+  }
   const state = genToken(24);
   const verifier = genToken(32);
+  const nonce = genToken(24);
   const codeChallenge = crypto.createHash('sha256').update(verifier).digest('base64url');
-  pendingStates.set(state, { redirect, verifier, expiresAt: Date.now() + STATE_TTL });
+  pendingStates.set(state, { redirect, verifier, nonce, expiresAt: now + STATE_TTL });
   const cookie = [`${STATE_COOKIE}=${state}`, 'Path=/api/oauth', 'HttpOnly', 'SameSite=Lax', `Max-Age=${Math.floor(STATE_TTL / 1000)}`];
   if (config.secureCookies) cookie.push('Secure');
   appendSetCookie(res, cookie.join('; '));
-  return { state, codeChallenge };
+  return { state, codeChallenge, nonce };
 }
 
 export function clearOAuthState(res) {
@@ -79,13 +92,14 @@ export function consumeOAuthState(req) {
   return entry;
 }
 
-export function buildAuthorizeUrl(cfg, state, redirectUri, codeChallenge) {
+export function buildAuthorizeUrl(cfg, state, redirectUri, codeChallenge, nonce = '') {
   const u = new URL(cfg.authUrl);
   u.searchParams.set('client_id', cfg.clientId);
   u.searchParams.set('redirect_uri', redirectUri);
   u.searchParams.set('response_type', 'code');
   u.searchParams.set('scope', cfg.scopes);
   u.searchParams.set('state', state);
+  if (nonce) u.searchParams.set('nonce', nonce);
   if (codeChallenge) {
     u.searchParams.set('code_challenge', codeChallenge);
     u.searchParams.set('code_challenge_method', 'S256');
@@ -102,14 +116,27 @@ function pickUsername(profile, cfg) {
   return null;
 }
 
-function parseIdTokenPayload(idToken) {
-  try {
-    const payloadB64 = idToken.split('.')[1];
-    const json = Buffer.from(payloadB64, 'base64url').toString('utf8');
-    return JSON.parse(json);
-  } catch {
-    return null;
+async function jwksFor(cfg) {
+  let url = cfg.jwksUrl;
+  if (!url && cfg.issuer) {
+    const discoveryUrl = `${cfg.issuer.replace(/\/+$/, '')}/.well-known/openid-configuration`;
+    const discovery = await fetchJson(discoveryUrl, { timeoutMs: 10000 });
+    url = discovery.json?.jwks_uri || '';
   }
+  if (!url) throw new Error('OIDC issuer/JWKS URL is required to verify the ID token');
+  if (!jwksCache.has(url)) jwksCache.set(url, createRemoteJWKSet(new URL(url)));
+  return jwksCache.get(url);
+}
+
+async function verifyIdToken(cfg, idToken, nonce) {
+  if (!cfg.issuer) throw new Error('OIDC issuer is required to verify the ID token');
+  const { payload } = await jwtVerify(idToken, await jwksFor(cfg), {
+    issuer: cfg.issuer,
+    audience: cfg.clientId,
+    clockTolerance: 60,
+  });
+  if (nonce && payload.nonce !== nonce) throw new Error('OIDC nonce mismatch');
+  return payload;
 }
 
 export async function exchangeCode(cfg, code, redirectUri, codeVerifier) {
@@ -137,28 +164,30 @@ export async function exchangeCode(cfg, code, redirectUri, codeVerifier) {
   return tokens;
 }
 
-export async function fetchProfile(cfg, tokens) {
+export async function fetchProfile(cfg, tokens, { nonce = '' } = {}) {
   if (cfg.userInfoUrl) {
     const res = await fetchJson(cfg.userInfoUrl, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
       timeoutMs: 15000,
     });
-    if (res.json) return res.json;
+    if (res.json && typeof res.json === 'object') return res.json;
   }
-  if (tokens.id_token) {
-    const payload = parseIdTokenPayload(tokens.id_token);
-    if (payload) return payload;
-  }
-  throw new Error('Could not read user profile from SSO provider');
+  if (tokens.id_token) return verifyIdToken(cfg, tokens.id_token, nonce);
+  throw new Error('Could not read a verified user profile from the SSO provider');
 }
 
 export async function resolveSsoUser(tokens, profile, { createUser, findUserByName, findUserByOauth, linkOauth }) {
   const cfg = ssoConfig();
-  const username = pickUsername(profile, cfg);
-  if (!username) throw new Error('SSO provider profile contained no usable username field');
+  const rawUsername = pickUsername(profile, cfg);
+  if (!rawUsername) throw new Error('SSO provider profile contained no usable username field');
+  const username = String(rawUsername).trim();
+  if (!/^[a-zA-Z0-9_.\-@]{2,40}$/.test(username)) {
+    throw new Error('SSO provider returned a username outside the supported format');
+  }
 
   const provider = 'sso';
-  const sub = String(profile.sub ?? profile.id ?? username);
+  const sub = String(profile.sub ?? profile.id ?? '').trim();
+  if (!sub) throw new Error('SSO provider profile contained no stable subject identifier');
 
   // Match on the stable (provider, sub) identity first — never on a bare username.
   let user = findUserByOauth ? await findUserByOauth(provider, sub) : null;
@@ -182,7 +211,7 @@ export async function resolveSsoUser(tokens, profile, { createUser, findUserByNa
   if (!user && cfg.autoCreate) {
     user = await createUser({
       username,
-      displayName: String(profile.name || profile.given_name || username),
+      displayName: String(profile.name || profile.given_name || username).slice(0, 60),
       oauthProvider: provider,
       oauthSub: sub,
     });

@@ -22,12 +22,21 @@ export const config = {
   sessionTtlRememberHours: intEnv('SESSION_TTL_REMEMBER_HOURS', 24 * 30),
   secureCookies: process.env.SECURE_COOKIES === '1',
   trustProxy: process.env.TRUST_PROXY === '1',
+  trustProxyHops: Math.max(1, intEnv('TRUST_PROXY_HOPS', 1)),
   publicUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, ''),
   version: '1.0.0',
 };
 
-fs.mkdirSync(config.dataDir, { recursive: true });
-fs.mkdirSync(config.uploadsDir, { recursive: true });
+// Database/WAL, uploads and the install secret should not be world-readable.
+// Docker's entrypoint sets UMASK as well; this also covers bare-node installs.
+const configuredUmask = parseInt(process.env.UMASK || '077', 8);
+try { process.umask(Number.isFinite(configuredUmask) ? configuredUmask : 0o077); } catch { /* ignore */ }
+
+fs.mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
+fs.mkdirSync(config.uploadsDir, { recursive: true, mode: 0o700 });
+for (const p of [config.dataDir, config.uploadsDir]) {
+  try { fs.chmodSync(p, 0o700); } catch { /* Windows / restricted FS */ }
+}
 
 // ---------------------------------------------------------------------------
 // Per-install secret used to encrypt service credentials at rest (AES-256-GCM)
@@ -35,10 +44,14 @@ fs.mkdirSync(config.uploadsDir, { recursive: true });
 function loadOrCreateSecret() {
   try {
     const existing = fs.readFileSync(config.secretFile, 'utf8').trim();
-    if (/^[0-9a-f]{64}$/i.test(existing)) return Buffer.from(existing, 'hex');
+    if (/^[0-9a-f]{64}$/i.test(existing)) {
+      try { fs.chmodSync(config.secretFile, 0o600); } catch { /* ignore */ }
+      return Buffer.from(existing, 'hex');
+    }
   } catch { /* first run */ }
   const key = crypto.randomBytes(32);
   fs.writeFileSync(config.secretFile, key.toString('hex') + '\n', { mode: 0o600 });
+  try { fs.chmodSync(config.secretFile, 0o600); } catch { /* ignore */ }
   return key;
 }
 const secretKey = loadOrCreateSecret();

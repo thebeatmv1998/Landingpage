@@ -55,32 +55,46 @@ next to the server host. Nothing needs to be changed in the web UI.
 Requirements: JDK 17 and the Android SDK (platform 35, build-tools 35). Android
 Studio Ladybug or newer can import the `android/` folder directly.
 
-A debug-signed APK is delivered separately (not bundled in the HomeDeck server tarball):
+A release-signed APK is attached to the latest GitHub Release and included in the
+release tarball at `public/download/homedeck.apk`:
 
 ```
-homedeck.apk   (v1.1.3, Android 8.0+, ~3.9 MB)
-SHA-256: F2D5217849302FD771DC742C1647946B09B026F187DEDD375ED2A70F975D7660
+homedeck.apk   (v1.1.4, Android 8.0+, ~3.0 MB, release-signed)
+SHA-256: D147ADE296CC313F81A95CCAEDE95F4EC8303D2CA0646FB5C9873BF6D3886074
 ```
 
 Place it in `public/download/homedeck.apk` on the server to enable the
-**Download APK** button under **My settings → Mobile app**; otherwise the app is
-still available from the separately delivered file. Enable “Install unknown apps”
-for the browser when sideloading. For public distribution, build and sign a release
-APK with your own keystore.
+**Download APK** button under **My settings → Mobile app**. Enable “Install unknown
+apps” for the browser when sideloading. The debug and release certificates are
+different, so uninstall an older debug build before installing this release.
+
+Release build (keystore must be kept outside the repository):
 
 ```bash
 cd android
-chmod +x gradlew
-./gradlew assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
+export HOMEDECK_KEYSTORE=/secure/path/homedeck-release.jks
+export HOMEDECK_KEYSTORE_PASSWORD='…'
+export HOMEDECK_KEY_ALIAS=homedeck
+export HOMEDECK_KEY_PASSWORD='…'
+./gradlew assembleRelease
+# APK: app/build/outputs/apk/release/app-release.apk
 ```
+
+For local development, `assembleDebug` still works and produces a debug-signed APK.
 
 Windows:
 
 ```powershell
 cd android
-.\gradlew.bat assembleDebug
+$env:HOMEDECK_KEYSTORE = 'C:\secure\homedeck-release.jks'
+$env:HOMEDECK_KEYSTORE_PASSWORD = '…'
+$env:HOMEDECK_KEY_ALIAS = 'homedeck'
+$env:HOMEDECK_KEY_PASSWORD = '…'
+.\gradlew.bat assembleRelease
 ```
+
+Back up the keystore and its password separately from the repository. Losing them
+means future releases cannot update an installed app.
 
 The Gradle wrapper is included. If your SDK is not in the default location, create
 `android/local.properties`:

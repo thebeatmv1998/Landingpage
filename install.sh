@@ -11,7 +11,7 @@ PORT=${PORT:-8753}                                  # Host-Port (Container lausc
 DATA=${DATA:-/mnt/user/appdata/homedeck}
 PUID=${PUID:-99}
 PGID=${PGID:-100}
-UMASK=${UMASK:-022}
+UMASK=${UMASK:-077}
 TZ=${TZ:-Europe/Berlin}
 SOCKET=${SOCKET:-}                                  # no Docker socket by default
 

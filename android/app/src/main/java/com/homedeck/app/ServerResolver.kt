@@ -83,6 +83,7 @@ object ServerResolver {
             val url = URL(value)
             if (url.protocol != "http" && url.protocol != "https") return null
             if (url.host.isNullOrEmpty()) return null
+            if (url.protocol == "http" && !PairLinks.isLocalHost(url.host)) return null
             url.toString().trimEnd('/')
         } catch (_: Exception) {
             null
@@ -94,6 +95,7 @@ object ServerResolver {
         return try {
             val url = URL(base.trimEnd('/') + "/api/ping")
             if (url.protocol != "http" && url.protocol != "https") return false
+            if (url.protocol == "http" && !PairLinks.isLocalHost(url.host)) return false
             connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = TIMEOUT_MS

@@ -283,7 +283,11 @@ object Api {
     private fun request(method: String, url: String, token: String?, body: String?): String {
         var connection: HttpURLConnection? = null
         try {
-            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            val target = URL(url)
+            if (target.protocol == "http" && !PairLinks.isLocalHost(target.host)) {
+                throw ApiException("HTTPS is required for non-local servers", 0)
+            }
+            val conn = (target.openConnection() as HttpURLConnection).apply {
                 requestMethod = method
                 connectTimeout = 10_000
                 readTimeout = 20_000

@@ -219,6 +219,10 @@ app.get('/jellyfin/Sessions', (req, res) => res.json([
 ]));
 app.post('/jellyfin/Sessions/:id/Playing/:cmd', (req, res) => res.status(204).end());
 app.get('/jellyfin/Items/m123/Images/Primary', (req, res) => { res.type('image/png'); res.send(PNG); });
+app.get('/jellyfin/Items/svg/Images/Primary', (req, res) => {
+  res.type('image/svg+xml');
+  res.send('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+});
 
 // ------------------------------------------------------------------ Audiobookshelf
 app.use('/abs', (req, res, next) => {

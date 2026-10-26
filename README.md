@@ -18,7 +18,7 @@ docker build --pull -t homedeck-usenet:latest .
 docker run -d --name homedeck --restart unless-stopped \
   -p 8753:8000 \
   -v /mnt/user/appdata/homedeck:/data \
-  -e UID=99 -e GID=100 -e UMASK=022 -e TZ=Europe/Berlin \
+  -e UID=99 -e GID=100 -e UMASK=077 -e TZ=Europe/Berlin \
   homedeck-usenet:latest
 ```
 
@@ -32,8 +32,8 @@ build+run on any Docker host (defaults: host port 8753, image `homedeck-usenet:l
 
 > The Docker socket is deliberately **not** mounted by default: it grants host-level
 > control, and a `:ro` mount is not a Docker API boundary. If you need the **Docker
-> widget**, use a filtering socket proxy (see `SECURITY-AUDIT-2026-10-25.md`) or mount
-> the socket manually only on a trusted host.
+> widget**, use a filtering socket proxy or mount the socket manually only on a
+> trusted host. See `SECURITY.md` for reporting and deployment hardening.
 
 ### Bare Node
 
@@ -52,10 +52,11 @@ npm start          # listens on :8080, data stored in ./data
 | `PORT`                     | `8080`             | HTTP port (Docker image default: `8000`)       |
 | `HOST`                     | `0.0.0.0`          | Bind address                                   |
 | `DATA_DIR`                 | `./data`           | SQLite DB, uploads, encryption key (Docker image default: `/data`) |
-| `UID` / `GID` (or `PUID`/`PGID`) | `0` / `0`    | Run as this numeric user/group (Docker entrypoint only) |
-| `UMASK`                    | `022`              | File mode mask for created files (Docker entrypoint only) |
+| `UID` / `GID` (or `PUID`/`PGID`) | `99` / `100` | Run as this numeric user/group (Docker entrypoint only) |
+| `UMASK`                    | `077`              | File mode mask for created files (Docker entrypoint only) |
 | `TZ`                       | system             | Timezone (Docker entrypoint passes through to Node) |
 | `TRUST_PROXY`              | `0`                | Set `1` behind a reverse proxy (OAuth, IPs)    |
+| `TRUST_PROXY_HOPS`         | `1`                | Trusted proxy hop count when `TRUST_PROXY=1`   |
 | `PUBLIC_URL`               | _(derived)_        | Canonical base URL for OAuth redirects, e.g. `https://deck.example.com` (recommended in production) |
 | `SECURE_COOKIES`           | `0`                | Set `1` when serving via HTTPS                 |
 | `SESSION_TTL_HOURS`        | `168`              | Session lifetime                               |
@@ -110,7 +111,7 @@ local/public URL failover, keeps an offline cache and offers themes, accent colo
 compact cards, grouping and a refresh interval. See `android/README.md` for build
 instructions (JDK 17 + Android SDK 35).
 
-A prebuilt **debug-signed APK** (`homedeck.apk`, v1.1.3, Android 8.0+) is attached to
+A prebuilt **release-signed APK** (`homedeck.apk`, v1.1.4, Android 8.0+) is attached to
 the latest **GitHub Release** and also included in `homedeck-usenet.tar.gz` at
 `public/download/homedeck.apk`. Building the Docker image from that tarball enables the
 download button in **My settings → Mobile app**. The app includes charts/detail screens
@@ -203,7 +204,7 @@ Done — it appears in the admin gallery, the forms and the dashboard.
 ```bash
 npm run mock    # starts mock versions of every service API on :9000
 npm run unit    # unit tests for helpers (no network)
-npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 289 assertions)
+npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 292 assertions)
 npm test        # unit + smoke
 ```
 
