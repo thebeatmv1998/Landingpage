@@ -174,6 +174,7 @@ async function main() {
     { type: 'sabnzbd', name: 'SABnzbd', url: 'http://127.0.0.1:9000/sabnzbd', api_key: 'testkey-sab', category: 'Downloads' },
     { type: 'jellyfin', name: 'Jellyfin', url: 'http://127.0.0.1:9000/jellyfin', api_key: 'testkey-jf', category: 'Media' },
     { type: 'audiobookshelf', name: 'Audiobookshelf', url: 'http://127.0.0.1:9000/abs', api_key: 'testkey-abs', category: 'Media' },
+    { type: 'seerr', name: 'Seerr', url: 'http://127.0.0.1:9000/seerr', api_key: 'testkey-seerr', category: 'Media' },
     { type: 'overseerr', name: 'Overseerr', url: 'http://127.0.0.1:9000/overseerr', api_key: 'testkey-overseerr', category: 'Media' },
     { type: 'jellyseerr', name: 'Jellyseerr', url: 'http://127.0.0.1:9000/jellyseerr', api_key: 'testkey-jellyseerr', category: 'Media' },
     { type: 'navidrome', name: 'Navidrome', url: 'http://127.0.0.1:9000/navidrome', username: 'naviuser', password: 'navipass', category: 'Media' },
@@ -220,6 +221,19 @@ async function main() {
     r = await call(`/api/services/${ids[s.name]}/test`, { method: 'POST', body: {} });
     ok(r.json?.ok === true, `test ${s.name} → ${r.json?.message || r.json?.error || JSON.stringify(r.json)}`);
   }
+  // Seerr is the unified successor; Overseerr/Jellyseerr remain aliases.
+  r = await call('/api/registry');
+  const seerrReg = (r.json || []).find((x) => x.type === 'seerr');
+  ok(seerrReg?.icon === '/icons/seerr.webp', 'Seerr registry entry exposes the local icon');
+  const seerrIcon = await fetch(BASE + '/icons/seerr.webp');
+  ok(seerrIcon.status === 200 && (seerrIcon.headers.get('content-type') || '').includes('image/webp'), 'Seerr icon is served locally');
+  r = await call(`/api/services/${ids['Seerr']}/action`, { method: 'POST', body: { action: 'approve_request', value: 1 } });
+  ok(r.status === 200 && r.json?.ok === true, 'Seerr admin approve request');
+  r = await call('/api/summary');
+  const seerrSnap = (r.json?.services || []).find((s) => s.type === 'seerr');
+  ok(seerrSnap?.requestCounts?.open === 1 && seerrSnap?.requestCounts?.approved === 3 && seerrSnap?.requestCounts?.available === 1,
+    'Seerr request counts by status');
+
   // Overseerr and Jellyseerr share the same request connector.
   r = await call(`/api/services/${ids['Overseerr']}/action`, { method: 'POST', body: { action: 'approve_request', value: 1 } });
   ok(r.status === 200 && r.json?.ok === true, 'Overseerr admin approve request');
@@ -453,6 +467,8 @@ async function main() {
   ok(r.status === 200 && r.json?.ok === true, 'non-admin can stop a Jellyfin playback session');
   r = await call(`/api/services/${ids['Overseerr']}/action`, { method: 'POST', as: 'kid', body: { action: 'approve_request', value: 5 } });
   ok(r.status === 403, 'non-admin cannot approve Overseerr requests');
+  r = await call(`/api/services/${ids['Seerr']}/action`, { method: 'POST', as: 'kid', body: { action: 'approve_request', value: 5 } });
+  ok(r.status === 403, 'non-admin cannot approve Seerr requests');
   r = await call('/api/summary', { as: 'kid' });
   const kidNames = (r.json?.services || []).map((s) => s.name);
   ok(kidNames.includes('Vaultwarden'), 'kid (group fam) sees restricted service');

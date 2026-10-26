@@ -50,7 +50,7 @@ function wmo(code, isDay = 1) {
 export const WIDGETS = [
   { id: 'services', title: 'Services', icon: 'menu', defaultSpan: 4, fixed: true, defaultOn: true, desc: 'Grid of all your services with live status' },
   { id: 'nowPlaying', title: 'Now Playing', icon: 'play', defaultSpan: 2, defaultOn: true, desc: 'Live streams from Jellyfin, Audiobookshelf & Navidrome' },
-  { id: 'requests', title: 'Requests', icon: 'film', defaultSpan: 2, defaultOn: true, desc: 'Overseerr / Jellyseerr requests — pending, approved, available and latest posters' },
+  { id: 'requests', title: 'Requests', icon: 'film', defaultSpan: 2, defaultOn: true, desc: 'Seerr / Overseerr / Jellyseerr requests — pending, approved, available and latest posters' },
   { id: 'downloads', title: 'Downloads', icon: 'download', defaultSpan: 2, defaultOn: true, desc: 'SABnzbd queue and *arr activity with speed graph' },
   { id: 'calendar', title: 'Media Calendar', icon: 'calendar', defaultSpan: 2, defaultOn: true, desc: 'Upcoming episodes, movies and albums (next 7 days)' },
   { id: 'pihole', title: 'DNS / Ad Blocking', icon: 'shield', defaultSpan: 2, defaultOn: true, desc: 'Pi-hole stats and 24h query graph' },
@@ -536,7 +536,7 @@ function requestTone(status) {
 }
 
 export function renderRequests(body, ctx) {
-  const services = (ctx.services || []).filter((s) => s.type === 'overseerr' || s.type === 'jellyseerr');
+  const services = (ctx.services || []).filter((s) => s.type === 'seerr' || s.type === 'overseerr' || s.type === 'jellyseerr');
   if (!services.length) {
     body.innerHTML = emptyWidget('Requests', 'requests');
     return;

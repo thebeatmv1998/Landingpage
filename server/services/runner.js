@@ -50,7 +50,7 @@ import generic from './connectors/generic.js';
 
 const connectors = {
   sonarr, radarr, lidarr, prowlarr, nzbhydra, sabnzbd, jellyfin, audiobookshelf,
-  overseerr, jellyseerr: overseerr,
+  seerr: overseerr, overseerr, jellyseerr: overseerr,
   navidrome, nextcloud, pihole, immich, komga, pingvin, stash, tachidesk, vaultwarden,
   docker, unraid, generic,
 };

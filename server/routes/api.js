@@ -240,7 +240,7 @@ apiRouter.post('/services/:id/action', requireAuth, wrap(async (req, res) => {
   const containerAction = ['update', 'update-all', 'start', 'stop', 'restart'].includes(action)
     && ['docker', 'unraid'].includes(row.type);
   const requestAction = ['approve_request', 'decline_request'].includes(action)
-    && ['overseerr', 'jellyseerr'].includes(row.type);
+    && ['seerr', 'overseerr', 'jellyseerr'].includes(row.type);
   if ((containerAction || requestAction) && req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Administrator access required' });
   }

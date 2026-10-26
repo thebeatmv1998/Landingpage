@@ -68,7 +68,7 @@ export default {
   async test(ctx) {
     if (!ctx.base) return { ok: false, message: 'URL is required' };
     if (!ctx.apiKey) return { ok: false, message: 'API key is required (Overseerr/Jellyseerr → Settings → API Key)' };
-    const label = ctx.type === 'jellyseerr' ? 'Jellyseerr' : 'Overseerr';
+    const label = ctx.type === 'seerr' ? 'Seerr' : ctx.type === 'jellyseerr' ? 'Jellyseerr' : 'Overseerr';
     let version = '';
     try {
       const status = await api(ctx, '/status', { timeoutMs: 10000 });

@@ -52,13 +52,18 @@ export const registry = [
     fields: [F.apiKey({ help: 'Server API key (or use username/password below)' }), F.username(), F.password()],
   },
   {
-    type: 'overseerr', label: 'Overseerr', blurb: 'Media requests — pending/approved/available counts, latest requests and admin approve/decline',
-    category: 'Media', color: '#e5a00d', glyph: 'film', pollMs: 60000,
+    type: 'seerr', label: 'Seerr', blurb: 'Media requests — the unified Overseerr/Jellyseerr successor (Plex, Jellyfin & Emby)',
+    category: 'Media', color: '#5b8cff', glyph: 'film', icon: '/icons/seerr.webp', pollMs: 60000,
+    fields: [F.apiKey({ required: true, help: 'Seerr → Settings → General → API Key' })],
+  },
+  {
+    type: 'overseerr', label: 'Overseerr (legacy)', blurb: 'Media requests — legacy Overseerr installations',
+    category: 'Media', color: '#e5a00d', glyph: 'film', icon: '/icons/overseerr.webp', pollMs: 60000,
     fields: [F.apiKey({ required: true, help: 'Overseerr → Settings → General → API Key' })],
   },
   {
-    type: 'jellyseerr', label: 'Jellyseerr', blurb: 'Media requests — same API as Overseerr, for Jellyfin-based setups',
-    category: 'Media', color: '#8b5cf6', glyph: 'tv', pollMs: 60000,
+    type: 'jellyseerr', label: 'Jellyseerr (legacy)', blurb: 'Media requests — legacy Jellyseerr installations',
+    category: 'Media', color: '#8b5cf6', glyph: 'tv', icon: '/icons/jellyseerr.webp', pollMs: 60000,
     fields: [F.apiKey({ required: true, help: 'Jellyseerr → Settings → General → API Key' })],
   },
   {
