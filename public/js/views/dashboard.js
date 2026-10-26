@@ -2,11 +2,12 @@ import { state, savePrefs, effectiveAppearance } from '../state.js';
 import { API } from '../api.js';
 import { esc, h, icon, toast, modal, confirmModal, debounce } from '../ui.js';
 import { createDashGrid } from '../grid.js';
-import { WIDGETS, renderClock, renderWeather, renderServices, renderNowPlaying, renderDownloads, renderPihole, renderDisks, renderIndexers, renderDocker, renderHealth, renderCalendar, renderUnraid, renderNextcloud } from './widgets.js';
+import { WIDGETS, renderClock, renderWeather, renderServices, renderNowPlaying, renderRequests, renderDownloads, renderPihole, renderDisks, renderIndexers, renderDocker, renderHealth, renderCalendar, renderUnraid, renderNextcloud } from './widgets.js';
 import { probeService, probeServices, onReachability } from '../net.js';
 
 const RENDERERS = {
   clock: renderClock, weather: renderWeather, services: renderServices, nowPlaying: renderNowPlaying,
+  requests: renderRequests,
   downloads: renderDownloads, pihole: renderPihole, disks: renderDisks, indexers: renderIndexers,
   docker: renderDocker, health: renderHealth, calendar: renderCalendar, unraid: renderUnraid,
   nextcloud: renderNextcloud,

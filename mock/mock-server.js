@@ -578,6 +578,61 @@ app.post('/unraid/graphql', (req, res) => {
   } });
 });
 
+// ------------------------------------------------------------------ Overseerr / Jellyseerr
+function overseerrRouter(version) {
+  const router = express.Router();
+  const requests = [
+    { id: 1, status: 1, media: { mediaType: 'movie', title: 'Dune: Part Two', posterPath: '/dune.jpg', status: 2, releaseDate: '2024-03-01' }, requestedBy: { displayName: 'Alice', username: 'alice' } },
+    { id: 2, status: 2, media: { mediaType: 'tv', title: 'Severance', posterPath: '/severance.jpg', status: 5, firstAirDate: '2022-02-18' }, requestedBy: { displayName: 'Bob', username: 'bob' } },
+    { id: 3, status: 2, media: { mediaType: 'tv', title: 'The Bear', posterPath: '/bear.jpg', status: 3, firstAirDate: '2022-06-23' }, requestedBy: { displayName: 'Cara', username: 'cara' } },
+    { id: 4, status: 3, media: { mediaType: 'movie', title: 'Argylle', posterPath: '/argylle.jpg', status: 2, releaseDate: '2024-02-02' }, requestedBy: { displayName: 'Dan', username: 'dan' } },
+    { id: 5, status: 1, media: { mediaType: 'movie', title: 'Furiosa', posterPath: '/furiosa.jpg', status: 2, releaseDate: '2024-05-24' }, requestedBy: { displayName: 'Eve', username: 'eve' } },
+  ];
+  const auth = (req, res) => {
+    const key = req.get('X-Api-Key') || '';
+    if (!key.startsWith('testkey-')) { res.status(401).json({ error: 'invalid api key' }); return false; }
+    return true;
+  };
+  const filtered = (filter) => {
+    if (filter === 'pending') return requests.filter((r) => Number(r.status) === 1);
+    if (filter === 'approved') return requests.filter((r) => Number(r.status) === 2);
+    if (filter === 'available') return requests.filter((r) => Number(r.media?.status) === 5);
+    if (filter === 'processing') return requests.filter((r) => Number(r.media?.status) === 3);
+    if (filter === 'declined') return requests.filter((r) => Number(r.status) === 3);
+    return requests;
+  };
+  router.get('/api/v1/status', (req, res) => res.json({ version, commitTag: 'mock', updateAvailable: false }));
+  router.get('/api/v1/request', (req, res) => {
+    if (!auth(req, res)) return;
+    const filter = String(req.query.filter || 'all');
+    const list = filtered(filter).slice().sort((a, b) => b.id - a.id);
+    const take = Math.max(1, Math.min(100, Number(req.query.take) || 20));
+    const skip = Math.max(0, Number(req.query.skip) || 0);
+    const page = Math.floor(skip / take) + 1;
+    res.json({
+      pageInfo: { pages: Math.max(1, Math.ceil(list.length / take)), pageSize: take, results: list.length, page },
+      results: list.slice(skip, skip + take),
+    });
+  });
+  router.post('/api/v1/request/:id/approve', (req, res) => {
+    if (!auth(req, res)) return;
+    const item = requests.find((r) => r.id === Number(req.params.id));
+    if (!item) return res.status(404).json({ error: 'request not found' });
+    item.status = 2;
+    res.json({ id: item.id, status: item.status });
+  });
+  router.post('/api/v1/request/:id/decline', (req, res) => {
+    if (!auth(req, res)) return;
+    const item = requests.find((r) => r.id === Number(req.params.id));
+    if (!item) return res.status(404).json({ error: 'request not found' });
+    item.status = 3;
+    res.json({ id: item.id, status: item.status });
+  });
+  return router;
+}
+app.use('/overseerr', overseerrRouter('1.33.0'));
+app.use('/jellyseerr', overseerrRouter('2.1.0'));
+
 // ------------------------------------------------------------------ generic
 app.get('/generic/', (req, res) => res.status(200).send('hello'));
 

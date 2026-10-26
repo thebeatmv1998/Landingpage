@@ -239,7 +239,9 @@ apiRouter.post('/services/:id/action', requireAuth, wrap(async (req, res) => {
   // Jellyfin pause/stop) remain available to users who can see the service.
   const containerAction = ['update', 'update-all', 'start', 'stop', 'restart'].includes(action)
     && ['docker', 'unraid'].includes(row.type);
-  if (containerAction && req.user.role !== 'admin') {
+  const requestAction = ['approve_request', 'decline_request'].includes(action)
+    && ['overseerr', 'jellyseerr'].includes(row.type);
+  if ((containerAction || requestAction) && req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Administrator access required' });
   }
   let result;

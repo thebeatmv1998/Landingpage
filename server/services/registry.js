@@ -52,6 +52,16 @@ export const registry = [
     fields: [F.apiKey({ help: 'Server API key (or use username/password below)' }), F.username(), F.password()],
   },
   {
+    type: 'overseerr', label: 'Overseerr', blurb: 'Media requests — pending/approved/available counts, latest requests and admin approve/decline',
+    category: 'Media', color: '#e5a00d', glyph: 'film', pollMs: 60000,
+    fields: [F.apiKey({ required: true, help: 'Overseerr → Settings → General → API Key' })],
+  },
+  {
+    type: 'jellyseerr', label: 'Jellyseerr', blurb: 'Media requests — same API as Overseerr, for Jellyfin-based setups',
+    category: 'Media', color: '#8b5cf6', glyph: 'tv', pollMs: 60000,
+    fields: [F.apiKey({ required: true, help: 'Jellyseerr → Settings → General → API Key' })],
+  },
+  {
     type: 'navidrome', label: 'Navidrome', blurb: 'Music server — live sessions from Feishin/Symfonium, library stats, cover art',
     category: 'Media', color: '#1e90ff', glyph: 'music', pollMs: 15000,
     fields: [

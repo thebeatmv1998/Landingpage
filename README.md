@@ -74,6 +74,7 @@ npm start          # listens on :8080, data stored in ./data
 | **SABnzbd** | live queue with per-item progress, speed + sparkline, history, ETA |
 | **Jellyfin** | library counts, **live "now playing"** with artwork, users, progress and **remote pause/resume/stop** |
 | **Audiobookshelf** | libraries, users, **currently open listening sessions** with artwork & progress (no remote pause API) |
+| **Overseerr / Jellyseerr** | request counts by status (open/approved/available), latest requests with poster + requester, and admin **approve/decline** actions |
 | **Navidrome** | live sessions from **Feishin**, Symfonium, the web player, etc., song/artist/album/playlist stats and cover art (Subsonic API, admin account recommended) |
 | **Nextcloud** | storage, files, users, shares, CPU & RAM (serverinfo API) |
 | **Pi-hole** | queries today, blocked %, clients, blocklist, **interactive 24h graph** (**v5 & v6**) |
@@ -204,7 +205,7 @@ Done — it appears in the admin gallery, the forms and the dashboard.
 ```bash
 npm run mock    # starts mock versions of every service API on :9000
 npm run unit    # unit tests for helpers (no network)
-npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 292 assertions)
+npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 307 assertions)
 npm test        # unit + smoke
 ```
 

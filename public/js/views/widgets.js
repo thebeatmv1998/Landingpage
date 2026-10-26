@@ -50,6 +50,7 @@ function wmo(code, isDay = 1) {
 export const WIDGETS = [
   { id: 'services', title: 'Services', icon: 'menu', defaultSpan: 4, fixed: true, defaultOn: true, desc: 'Grid of all your services with live status' },
   { id: 'nowPlaying', title: 'Now Playing', icon: 'play', defaultSpan: 2, defaultOn: true, desc: 'Live streams from Jellyfin, Audiobookshelf & Navidrome' },
+  { id: 'requests', title: 'Requests', icon: 'film', defaultSpan: 2, defaultOn: true, desc: 'Overseerr / Jellyseerr requests — pending, approved, available and latest posters' },
   { id: 'downloads', title: 'Downloads', icon: 'download', defaultSpan: 2, defaultOn: true, desc: 'SABnzbd queue and *arr activity with speed graph' },
   { id: 'calendar', title: 'Media Calendar', icon: 'calendar', defaultSpan: 2, defaultOn: true, desc: 'Upcoming episodes, movies and albums (next 7 days)' },
   { id: 'pihole', title: 'DNS / Ad Blocking', icon: 'shield', defaultSpan: 2, defaultOn: true, desc: 'Pi-hole stats and 24h query graph' },
@@ -516,6 +517,101 @@ export function renderNowPlaying(body, ctx) {
   };
   tick();
   body._npTimer = setInterval(tick, 1000);
+}
+
+// ---------------------------------------------------------------- requests
+function requestsPageUrl(svc, filter = 'all') {
+  const base = serviceUrl(svc);
+  if (!base) return '';
+  const suffix = filter && filter !== 'all' ? `?filter=${encodeURIComponent(filter)}` : '';
+  return `${base.replace(/\/+$/, '')}/requests${suffix}`;
+}
+
+function requestTone(status) {
+  if (status === 'available') return 'ok';
+  if (status === 'approved') return 'ok';
+  if (status === 'pending' || status === 'processing') return 'warn';
+  if (status === 'declined' || status === 'failed') return 'bad';
+  return '';
+}
+
+export function renderRequests(body, ctx) {
+  const services = (ctx.services || []).filter((s) => s.type === 'overseerr' || s.type === 'jellyseerr');
+  if (!services.length) {
+    body.innerHTML = emptyWidget('Requests', 'requests');
+    return;
+  }
+
+  const sections = services.map((svc) => {
+    if (!svc.online) return offlineHtml(svc, true);
+    const counts = svc.requestCounts || {};
+    const open = Number(counts.open) || 0;
+    const approved = Number(counts.approved) || 0;
+    const available = Number(counts.available) || 0;
+    const requests = Array.isArray(svc.requests) ? svc.requests.slice(0, 6) : [];
+    const chips = [
+      ['pending', 'Open', open],
+      ['approved', 'Approved', approved],
+      ['available', 'Available', available],
+    ].map(([key, label, value]) => `
+      <a class="chip" href="${esc(requestsPageUrl(svc, key))}" target="_blank" rel="noopener noreferrer"
+         title="Open ${esc(label.toLowerCase())} requests in ${esc(svc.name)}">
+        <span class="chip-l">${esc(label)}</span><span class="chip-v">${value}</span>
+      </a>`).join('');
+
+    const rows = requests.map((r) => {
+      const status = String(r.status || 'unknown');
+      const tone = requestTone(status);
+      const poster = r.poster ? proxyArt(svc, r.poster) : '';
+      const link = requestsPageUrl(svc, r.filter || 'all');
+      const actions = ctx.isAdmin && ctx.runServiceAction && status === 'pending'
+        ? `<button class="icon-btn" data-req-action="approve_request" data-req-id="${esc(r.id)}"
+             data-req-svc="${svc.id}" title="Approve request" aria-label="Approve request">${icon('check')}</button>
+           <button class="icon-btn" data-req-action="decline_request" data-req-id="${esc(r.id)}"
+             data-req-svc="${svc.id}" title="Decline request" aria-label="Decline request">${icon('x')}</button>`
+        : '';
+      return `
+        <div class="rowitem req-row">
+          ${poster
+            ? `<img class="req-poster" src="${esc(poster)}" alt="" loading="lazy">`
+            : `<span class="req-poster req-poster-empty">${icon('film')}</span>`}
+          <div class="row-main">
+            <div class="row-title">${esc(r.title)} <span class="row-badge req-status req-status-${esc(tone)}">${esc(r.statusLabel || status)}</span></div>
+            <div class="row-sub">${esc(r.user || 'Unknown user')}${r.subtitle ? ' · ' + esc(r.subtitle) : ''}</div>
+          </div>
+          <div class="req-actions">
+            ${actions}
+            ${link ? `<a class="icon-btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer"
+              title="Open request in ${esc(svc.name)}" aria-label="Open request in ${esc(svc.name)}">${icon('arrow')}</a>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    return `<div class="req-section">
+      <div class="rowitem" style="margin-bottom:7px">
+        <span class="row-title">${statusDot(true)} ${esc(svc.name)}</span>
+        <a class="btn btn-sm btn-ghost" href="${esc(requestsPageUrl(svc, 'all'))}" target="_blank" rel="noopener noreferrer">
+          ${icon('arrow')} Requests
+        </a>
+      </div>
+      <div class="chips req-counts">${chips}</div>
+      <div class="rowlist">${rows || '<div class="row-sub" style="padding:3px 0">No requests</div>'}</div>
+      ${updatedTag(svc)}
+    </div>`;
+  }).join('');
+
+  body.innerHTML = sections;
+  body.querySelectorAll('[data-req-action]').forEach((btn) => btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    btn.disabled = true;
+    const res = await ctx.runServiceAction(Number(btn.dataset.reqSvc), {
+      action: btn.dataset.reqAction,
+      value: btn.dataset.reqId,
+    });
+    if (res?.ok) setTimeout(() => ctx.rerenderWidget('requests'), 600);
+    else btn.disabled = false;
+  }));
 }
 
 // ---------------------------------------------------------------- downloads

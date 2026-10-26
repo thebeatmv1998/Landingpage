@@ -810,6 +810,23 @@ a.dc-name:hover { color: var(--accent); }
 a.cal-row { color: var(--text); text-decoration: none; border-radius: var(--radius-xs); padding: 2px 4px; margin: 0 -4px; transition: background .15s; }
 a.cal-row:hover { background: var(--card2); text-decoration: none; }
 
+/* Overseerr / Jellyseerr requests */
+.req-section + .req-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.req-counts a.chip { text-decoration: none; }
+.req-counts a.chip:hover { background: color-mix(in srgb, var(--accent) 14%, var(--card2)); }
+.req-row { align-items: flex-start; }
+.req-poster {
+  width: 38px; height: 54px; object-fit: cover; flex: none;
+  border-radius: 7px; border: 1px solid var(--line); background: var(--card2);
+}
+.req-poster-empty { display: grid; place-items: center; color: var(--muted); }
+.req-poster-empty .ic { width: 18px; height: 18px; }
+.req-actions { display: flex; align-items: center; gap: 1px; flex: none; }
+.req-status { margin-left: 4px; }
+.req-status-ok { color: var(--ok); }
+.req-status-warn { color: var(--warn); }
+.req-status-bad { color: var(--bad); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001s !important; transition-duration: .001s !important; }
 }

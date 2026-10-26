@@ -34,6 +34,7 @@ import nzbhydra from './connectors/nzbhydra.js';
 import sabnzbd from './connectors/sabnzbd.js';
 import jellyfin from './connectors/jellyfin.js';
 import audiobookshelf from './connectors/audiobookshelf.js';
+import overseerr from './connectors/overseerr.js';
 import navidrome from './connectors/navidrome.js';
 import nextcloud from './connectors/nextcloud.js';
 import pihole from './connectors/pihole.js';
@@ -49,6 +50,7 @@ import generic from './connectors/generic.js';
 
 const connectors = {
   sonarr, radarr, lidarr, prowlarr, nzbhydra, sabnzbd, jellyfin, audiobookshelf,
+  overseerr, jellyseerr: overseerr,
   navidrome, nextcloud, pihole, immich, komga, pingvin, stash, tachidesk, vaultwarden,
   docker, unraid, generic,
 };
@@ -125,6 +127,8 @@ class Runner {
       history: [],
       nowPlaying: [],
       containers: [],
+      requests: [],
+      requestCounts: { open: 0, approved: 0, available: 0 },
       calendar: [],
       charts: {},
       version: '',
