@@ -198,6 +198,7 @@ class PairingActivity : AppCompatActivity() {
                 secure.saveToken(result.token)
                 prefs.serverUrl = result.serverUrl
                 prefs.userName = result.displayName
+                prefs.role = result.role
                 prefs.serverTitle = result.serverTitle
                 prefs.lastGoodBase = result.serverUrl
                 ServerResolver.reset()

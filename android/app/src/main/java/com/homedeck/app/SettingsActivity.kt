@@ -340,6 +340,7 @@ class SettingsActivity : AppCompatActivity() {
         prefs.serverUrl = ""
         prefs.externalUrl = ""
         prefs.userName = ""
+        prefs.role = ""
         prefs.lastGoodBase = ""
         ServerResolver.reset()
         if (!token.isNullOrEmpty() && server.isNotEmpty()) {

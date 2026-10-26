@@ -17,6 +17,7 @@ import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -217,6 +218,7 @@ class ServiceDetailActivity : AppCompatActivity() {
             "docker" -> addDocker(service)
             "sonarr", "radarr", "lidarr" -> addArr(service)
             "jellyfin", "audiobookshelf", "navidrome" -> addNowPlaying(service)
+            "seerr", "overseerr", "jellyseerr" -> addRequests(service)
             "prowlarr", "nzbhydra" -> addIndexers(service)
         }
 
@@ -318,6 +320,14 @@ class ServiceDetailActivity : AppCompatActivity() {
             }
             body.addView(spark, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 100)), 0, 8, 0, 0))
             body.addView(progressRow("Queue", "${downloads.overall}%", downloads.overall, palette.accent), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0))
+            val toggle = Ui.actionButton(
+                this,
+                palette,
+                if (downloads.paused) "Resume queue" else "Pause queue",
+                if (downloads.paused) R.drawable.ic_play else R.drawable.ic_pause,
+                if (downloads.paused) palette.ok else palette.accent,
+            ) { runAction(service, if (downloads.paused) "resume" else "pause") }
+            body.addView(toggle, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0))
         }
     }
 
@@ -400,6 +410,14 @@ class ServiceDetailActivity : AppCompatActivity() {
 
     private fun addContainers(service: Service) {
         val body = section("Container details")
+        if (service.type == "unraid" && isAdmin()) {
+            body.addView(
+                Ui.actionButton(this, palette, "Update all", R.drawable.ic_update, palette.accent) {
+                    runAction(service, "update-all", confirm = "Update all containers? This can take a while.")
+                },
+                Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 0, 8),
+            )
+        }
         for (container in service.containers.take(60)) {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -425,6 +443,37 @@ class ServiceDetailActivity : AppCompatActivity() {
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
             }, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0))
+            if (isAdmin() && container.id.isNotEmpty() && (service.type == "docker" || service.type == "unraid")) {
+                val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                if (container.update) {
+                    actions.addView(
+                        Ui.actionButton(this, palette, "Update", R.drawable.ic_update, palette.accent) {
+                            runAction(service, "update", container.id)
+                        },
+                    )
+                }
+                if (running) {
+                    actions.addView(
+                        Ui.actionButton(this, palette, "Restart", R.drawable.ic_refresh, palette.muted) {
+                            runAction(service, "restart", container.id, confirm = "Restart ${container.name}?")
+                        },
+                        Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
+                    )
+                    actions.addView(
+                        Ui.actionButton(this, palette, "Stop", R.drawable.ic_stop, palette.bad) {
+                            runAction(service, "stop", container.id, confirm = "Stop ${container.name}?")
+                        },
+                        Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
+                    )
+                } else {
+                    actions.addView(
+                        Ui.actionButton(this, palette, "Start", R.drawable.ic_play, palette.ok) {
+                            runAction(service, "start", container.id)
+                        },
+                    )
+                }
+                col.addView(actions, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 5, 0, 0))
+            }
             row.addView(col, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             if (container.url.isNotEmpty()) {
                 row.addView(Ui.icon(this, R.drawable.ic_chevron, palette.faint, 14))
@@ -470,6 +519,35 @@ class ServiceDetailActivity : AppCompatActivity() {
             val live = LiveRow(timeView, bar, positionMs, durationMs, positionAt, item.paused, item.playbackRate)
             liveRows.add(live)
             paintLiveRow(live, System.currentTimeMillis())
+            val controls = when {
+                item.controls.isNotEmpty() -> item.controls
+                service.type == "jellyfin" -> listOf("pause", "resume", "stop")
+                else -> emptyList()
+            }
+            if (controls.isNotEmpty()) {
+                val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                val pauseAction = if (item.paused) "resume" else "pause"
+                if (controls.contains(pauseAction)) {
+                    actions.addView(
+                        Ui.actionButton(
+                            this,
+                            palette,
+                            if (item.paused) "Resume" else "Pause",
+                            if (item.paused) R.drawable.ic_play else R.drawable.ic_pause,
+                            if (item.paused) palette.ok else palette.accent,
+                        ) { runAction(service, pauseAction, item.id) },
+                    )
+                }
+                if (controls.contains("stop")) {
+                    actions.addView(
+                        Ui.actionButton(this, palette, "Stop", R.drawable.ic_stop, palette.bad) {
+                            runAction(service, "stop", item.id, confirm = "Stop playback of \"${item.title}\"?")
+                        },
+                        Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
+                    )
+                }
+                col.addView(actions, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 7, 0, 0))
+            }
             row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 10, 0, 0, 0))
             body.addView(row, rowMargins())
         }
@@ -524,6 +602,21 @@ class ServiceDetailActivity : AppCompatActivity() {
                 })
             }
             row.addView(progressBar(item.progress, if (item.paused) palette.warn else palette.accent), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 5)), 0, 5, 0, 0))
+            if (service.type == "sabnzbd" && item.id.isNotEmpty()) {
+                val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                controls.addView(
+                    Ui.smallIconButton(
+                        this,
+                        if (item.paused) R.drawable.ic_play else R.drawable.ic_pause,
+                        if (item.paused) palette.ok else palette.accent,
+                        28,
+                        14,
+                    ) {
+                        runAction(service, if (item.paused) "slot_resume" else "slot_pause", item.id)
+                    },
+                )
+                row.addView(controls, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 4, 0, 0))
+            }
             body.addView(row, rowMargins())
         }
     }
@@ -572,6 +665,91 @@ class ServiceDetailActivity : AppCompatActivity() {
             row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 9, 0, 0, 0))
             body.addView(row)
         }
+    }
+
+    private fun addRequests(service: Service) {
+        val counts = service.requestCounts
+        if (service.requests.isEmpty() && counts.open + counts.approved + counts.available == 0) return
+        val body = section("Requests")
+        val chips = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        chips.addView(requestChip("${counts.open}", "open", palette.warn))
+        chips.addView(
+            requestChip("${counts.approved}", "approved", palette.ok),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
+        )
+        chips.addView(
+            requestChip("${counts.available}", "available", palette.accent),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
+        )
+        body.addView(chips, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 0, 8))
+
+        for (request in service.requests.take(12)) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, Ui.dp(this@ServiceDetailActivity, 5), 0, Ui.dp(this@ServiceDetailActivity, 5))
+            }
+            val art = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                background = Ui.rounded(this@ServiceDetailActivity, palette.card2, 7)
+                clipToOutline = true
+            }
+            row.addView(art, Ui.lp(Ui.dp(this, 44), Ui.dp(this, 60)))
+            val artUrl = ImageLoader.artUrl(activeBase, service, request.poster)
+            if (artUrl.isNotEmpty()) ImageLoader.load(art, artUrl, token, activeBase)
+            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            col.addView(
+                Ui.text(this, request.title, 12.5f, palette.text, true).apply {
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                },
+            )
+            val sub = listOf(request.subtitle, request.user).filter { it.isNotBlank() }.joinToString(" · ")
+            if (sub.isNotEmpty()) {
+                col.addView(
+                    Ui.text(this, sub, 10f, palette.muted).apply {
+                        maxLines = 1
+                        ellipsize = TextUtils.TruncateAt.END
+                    },
+                )
+            }
+            if (request.statusLabel.isNotEmpty()) {
+                col.addView(
+                    Ui.text(this, request.statusLabel, 9.5f, if (request.status == "pending") palette.warn else palette.faint),
+                    Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0),
+                )
+            }
+            row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 9, 0, 4, 0))
+            if (isAdmin() && request.status == "pending") {
+                row.addView(
+                    Ui.smallIconButton(this, R.drawable.ic_check, palette.ok, 30, 15) {
+                        runAction(service, "approve_request", request.id)
+                    },
+                )
+                row.addView(
+                    Ui.smallIconButton(this, R.drawable.ic_close, palette.bad, 30, 15) {
+                        runAction(service, "decline_request", request.id, confirm = "Decline \"${request.title}\"?")
+                    },
+                    Ui.margins(this, Ui.lp(Ui.dp(this, 30), Ui.dp(this, 30)), 5, 0, 0, 0),
+                )
+            }
+            body.addView(row, rowMargins())
+        }
+    }
+
+    private fun requestChip(value: String, label: String, color: Int): LinearLayout {
+        val chip = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = Ui.rounded(this@ServiceDetailActivity, Ui.withAlpha(color, 20), 11, Ui.withAlpha(color, 55))
+            setPadding(Ui.dp(this@ServiceDetailActivity, 8), Ui.dp(this@ServiceDetailActivity, 4), Ui.dp(this@ServiceDetailActivity, 9), Ui.dp(this@ServiceDetailActivity, 4))
+        }
+        chip.addView(Ui.text(this, value, 11.5f, color, true))
+        chip.addView(
+            Ui.text(this, label, 9f, palette.muted),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 3, 0, 0, 0),
+        )
+        return chip
     }
 
     private fun addInfo(service: Service) {
@@ -708,6 +886,44 @@ class ServiceDetailActivity : AppCompatActivity() {
 
     private fun dot(color: Int): View =
         View(this).apply { background = Ui.circle(this@ServiceDetailActivity, color, 4) }
+
+    private fun isAdmin(): Boolean = prefs.role == "admin"
+
+    private fun runAction(service: Service, action: String, value: Any? = null, confirm: String? = null) {
+        val perform = {
+            executor.execute {
+                try {
+                    val result = Api.action(
+                        activeBase.ifEmpty { ServerResolver.active(prefs) },
+                        token,
+                        service.id,
+                        action,
+                        value,
+                    )
+                    handler.post {
+                        if (isFinishing || isDestroyed) return@post
+                        Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                        if (result.ok) handler.postDelayed({ load() }, 700)
+                    }
+                } catch (error: Exception) {
+                    handler.post {
+                        if (!isFinishing && !isDestroyed) {
+                            Toast.makeText(this, error.message ?: "Action failed", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+        }
+        if (confirm != null) {
+            AlertDialog.Builder(this)
+                .setMessage(confirm)
+                .setPositiveButton("Continue") { _, _ -> perform() }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } else {
+            perform()
+        }
+    }
 
     private fun openUrl(url: String) {
         if (url.isEmpty() || (!url.startsWith("http://") && !url.startsWith("https://"))) {

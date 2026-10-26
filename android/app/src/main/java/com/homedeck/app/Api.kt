@@ -7,6 +7,8 @@ import java.net.URL
 
 class ApiException(message: String, val code: Int = 0) : Exception(message)
 
+data class ActionResult(val ok: Boolean, val message: String)
+
 object Api {
     fun pair(serverUrl: String, code: String, deviceName: String): PairResult {
         val body = JSONObject()
@@ -25,6 +27,39 @@ object Api {
             username = user.optString("username", ""),
             displayName = user.optString("displayName", user.optString("username", "")),
             serverTitle = server.optString("title", "HomeDeck").ifEmpty { "HomeDeck" },
+            role = user.optString("role", ""),
+        )
+    }
+
+    /** Current user + role (used to unlock admin-only controls on the phone). */
+    fun me(serverUrl: String, token: String): String {
+        val raw = request("GET", serverUrl.trimEnd('/') + "/api/me", token, null)
+        return JSONObject(raw).optJSONObject("user")?.optString("role", "") ?: ""
+    }
+
+    /**
+     * Run a service action (container lifecycle, media controls, requests).
+     * The server enforces visibility and admin-only actions.
+     */
+    fun action(
+        serverUrl: String,
+        token: String,
+        serviceId: Int,
+        action: String,
+        value: Any? = null,
+    ): ActionResult {
+        val body = JSONObject().put("action", action)
+        if (value != null) body.put("value", value)
+        val raw = request(
+            "POST",
+            serverUrl.trimEnd('/') + "/api/services/$serviceId/action",
+            token,
+            body.toString(),
+        )
+        val o = try { JSONObject(raw) } catch (_: Exception) { JSONObject() }
+        return ActionResult(
+            ok = o.optBoolean("ok", false),
+            message = o.optString("message", "").ifEmpty { if (o.optBoolean("ok", false)) "Done" else "Action failed" },
         )
     }
 
@@ -67,6 +102,8 @@ object Api {
                     activity = parseActivity(j.optJSONArray("activity")),
                     nowPlaying = parseNowPlaying(j.optJSONArray("nowPlaying")),
                     containers = parseContainers(j.optJSONArray("containers")),
+                    requests = parseRequests(j.optJSONArray("requests")),
+                    requestCounts = parseRequestCounts(j.optJSONObject("requestCounts")),
                     history = parseHistory(j.optJSONArray("history")),
                     calendar = parseCalendar(j.optJSONArray("calendar")),
                     disks = parseDisks(j.optJSONArray("disks")),
@@ -145,6 +182,9 @@ object Api {
                     video = tr?.let { str(it, "video") } ?: "",
                     audio = tr?.let { str(it, "audio") } ?: "",
                     bitrate = tr?.optLong("bitrate", 0L) ?: 0L,
+                    controls = j.optJSONArray("controls")?.let { arr ->
+                        (0 until arr.length()).mapNotNull { arr.optString(it, "").takeIf { s -> s.isNotEmpty() } }
+                    } ?: emptyList(),
                 ),
             )
         }
@@ -164,10 +204,41 @@ object Api {
                     image = str(j, "image"),
                     url = str(j, "url"),
                     update = j.optBoolean("update", false),
+                    id = str(j, "id"),
                 ),
             )
         }
         return out
+    }
+
+    private fun parseRequests(array: JSONArray?): List<RequestItem> {
+        if (array == null) return emptyList()
+        val out = mutableListOf<RequestItem>()
+        for (i in 0 until array.length()) {
+            val j = array.optJSONObject(i) ?: continue
+            out.add(
+                RequestItem(
+                    id = j.optInt("id", 0),
+                    title = str(j, "title"),
+                    subtitle = str(j, "subtitle"),
+                    user = str(j, "user"),
+                    poster = str(j, "poster"),
+                    status = str(j, "status"),
+                    statusLabel = str(j, "statusLabel"),
+                    type = str(j, "type"),
+                ),
+            )
+        }
+        return out
+    }
+
+    private fun parseRequestCounts(j: JSONObject?): RequestCounts {
+        if (j == null) return RequestCounts()
+        return RequestCounts(
+            open = j.optInt("open", 0),
+            approved = j.optInt("approved", 0),
+            available = j.optInt("available", 0),
+        )
     }
 
     private fun parseHistory(array: JSONArray?): List<HistoryItem> {

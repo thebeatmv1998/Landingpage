@@ -112,7 +112,9 @@ local/public URL failover, keeps an offline cache and offers themes, accent colo
 compact cards, grouping and a refresh interval. Insights include an interactive
 Pi-hole 24 h chart (drag to inspect, series toggles), a live now-playing card,
 upcoming media, download queue, storage/Docker donuts and a tappable service-health
-strip. See `android/README.md` for build instructions (JDK 17 + Android SDK 35).
+strip. Admins can start/stop/restart/update containers and approve/decline Seerr
+requests right from the phone; playback and download queues can be paused, resumed
+or stopped. See `android/README.md` for build instructions (JDK 17 + Android SDK 35).
 
 A prebuilt **release-signed APK** (`homedeck.apk`, Android 8.0+, version matches the
 server/release tag) is attached to the latest **GitHub Release** and also included in

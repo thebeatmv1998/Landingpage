@@ -20,6 +20,7 @@ import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -241,6 +242,13 @@ class MainActivity : AppCompatActivity() {
                 val fetched = SummaryRepository.fetch(prefs, token)
                 val summary = fetched.summary
                 activeBase = fetched.base
+                if (prefs.role.isEmpty()) {
+                    try {
+                        prefs.role = Api.me(fetched.base, token)
+                    } catch (_: Exception) {
+                        // keep the controls hidden until the role is known
+                    }
+                }
                 appendDownloadHistory(summary)
                 prefs.cachedSummary = fetched.raw
                 prefs.cachedAt = System.currentTimeMillis()
@@ -491,6 +499,7 @@ class MainActivity : AppCompatActivity() {
     private fun widgetRow(all: List<Service>): View? {
         val cards = mutableListOf<View>()
         all.filter { it.nowPlaying.isNotEmpty() }.take(2).forEach { cards.add(nowPlayingCard(it)) }
+        requestsCard(all)?.let { cards.add(it) }
         all.firstOrNull { it.type == "sabnzbd" && it.charts.downloads != null }?.let { cards.add(downloadsCard(it)) }
         upcomingCard(all)?.let { cards.add(it) }
         all.firstOrNull { service -> service.charts.disks.any { it.totalGB > 0 } }?.let { storageCard(it)?.let(cards::add) }
@@ -557,6 +566,36 @@ class MainActivity : AppCompatActivity() {
         row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 9, 0, 0, 0))
         card.addView(row, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 9, 0, 0))
 
+        val controls = when {
+            item.controls.isNotEmpty() -> item.controls
+            service.type == "jellyfin" -> listOf("pause", "resume", "stop")
+            else -> emptyList()
+        }
+        if (controls.isNotEmpty()) {
+            val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            val pauseAction = if (item.paused) "resume" else "pause"
+            if (controls.contains(pauseAction)) {
+                actions.addView(
+                    Ui.smallIconButton(
+                        this,
+                        if (item.paused) R.drawable.ic_play else R.drawable.ic_pause,
+                        if (item.paused) palette.ok else palette.accent,
+                        30,
+                        15,
+                    ) { runAction(service, pauseAction, item.id) },
+                )
+            }
+            if (controls.contains("stop")) {
+                actions.addView(
+                    Ui.smallIconButton(this, R.drawable.ic_stop, palette.bad, 30, 15) {
+                        runAction(service, "stop", item.id, confirm = "Stop playback of \"${item.title}\"?")
+                    },
+                    Ui.margins(this, Ui.lp(Ui.dp(this, 30), Ui.dp(this, 30)), 6, 0, 0, 0),
+                )
+            }
+            card.addView(actions, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 7, 0, 0))
+        }
+
         val positionMs = if (item.positionMs > 0) item.positionMs else item.position * 1000L
         val durationMs = item.duration * 1000L
         val positionAt = if (item.positionAt > 0) item.positionAt else (service.fetchedAt.takeIf { it > 0 } ?: System.currentTimeMillis())
@@ -612,6 +651,14 @@ class MainActivity : AppCompatActivity() {
             progressBackgroundTintList = ColorStateList.valueOf(palette.line)
         }
         card.addView(queueBar, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 4)), 0, 6, 0, 0))
+        val queueToggle = Ui.actionButton(
+            this,
+            palette,
+            if (downloads.paused) "Resume queue" else "Pause queue",
+            if (downloads.paused) R.drawable.ic_play else R.drawable.ic_pause,
+            if (downloads.paused) palette.ok else palette.accent,
+        ) { runAction(service, if (downloads.paused) "resume" else "pause") }
+        card.addView(queueToggle, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 6, 0, 0))
         for (item in service.activity.take(2)) {
             val line = listOf(item.title, item.meta.ifEmpty { "${item.progress}%" }).joinToString(" · ")
             card.addView(
@@ -623,6 +670,86 @@ class MainActivity : AppCompatActivity() {
             )
         }
         return card
+    }
+
+    private fun requestsCard(all: List<Service>): View? {
+        val service = all.firstOrNull { it.type == "seerr" || it.type == "overseerr" || it.type == "jellyseerr" } ?: return null
+        val counts = service.requestCounts
+        if (service.requests.isEmpty() && counts.open + counts.approved + counts.available == 0) return null
+        val card = cardShell("Requests · ${service.name}", { openDetail(service) })
+        val chips = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        chips.addView(countChip("${counts.open}", "open", palette.warn))
+        chips.addView(
+            countChip("${counts.approved}", "approved", palette.ok),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 5, 0, 0, 0),
+        )
+        chips.addView(
+            countChip("${counts.available}", "available", palette.accent),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 5, 0, 0, 0),
+        )
+        card.addView(chips, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 7, 0, 0))
+
+        val items = service.requests.sortedBy { if (it.status == "pending") 0 else 1 }.take(2)
+        for (request in items) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, Ui.dp(this@MainActivity, 4), 0, Ui.dp(this@MainActivity, 4))
+            }
+            val art = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                background = Ui.rounded(this@MainActivity, palette.card2, 6)
+                clipToOutline = true
+            }
+            row.addView(art, Ui.lp(Ui.dp(this, 32), Ui.dp(this, 44)))
+            val artUrl = ImageLoader.artUrl(activeBase, service, request.poster)
+            if (artUrl.isNotEmpty()) ImageLoader.load(art, artUrl, secure.token() ?: "", activeBase)
+            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            col.addView(
+                Ui.text(this, request.title, 11.5f, palette.text, true).apply {
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                },
+            )
+            val sub = listOf(request.user, request.statusLabel).filter { it.isNotBlank() }.joinToString(" · ")
+            col.addView(
+                Ui.text(this, sub, 9.5f, if (request.status == "pending") palette.warn else palette.muted).apply {
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                },
+            )
+            row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 8, 0, 4, 0))
+            if (isAdmin() && request.status == "pending") {
+                row.addView(
+                    Ui.smallIconButton(this, R.drawable.ic_check, palette.ok, 28, 14) {
+                        runAction(service, "approve_request", request.id)
+                    },
+                )
+                row.addView(
+                    Ui.smallIconButton(this, R.drawable.ic_close, palette.bad, 28, 14) {
+                        runAction(service, "decline_request", request.id, confirm = "Decline \"${request.title}\"?")
+                    },
+                    Ui.margins(this, Ui.lp(Ui.dp(this, 28), Ui.dp(this, 28)), 4, 0, 0, 0),
+                )
+            }
+            card.addView(row)
+        }
+        return card
+    }
+
+    private fun countChip(value: String, label: String, color: Int): LinearLayout {
+        val chip = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = Ui.rounded(this@MainActivity, Ui.withAlpha(color, 20), 11, Ui.withAlpha(color, 55))
+            setPadding(Ui.dp(this@MainActivity, 7), Ui.dp(this@MainActivity, 3), Ui.dp(this@MainActivity, 8), Ui.dp(this@MainActivity, 3))
+        }
+        chip.addView(Ui.text(this, value, 11f, color, true))
+        chip.addView(
+            Ui.text(this, label, 8.5f, palette.muted),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 3, 0, 0, 0),
+        )
+        return chip
     }
 
     private fun upcomingCard(all: List<Service>): View? {
@@ -823,6 +950,44 @@ class MainActivity : AppCompatActivity() {
         } ?: return "?" to ""
         return SimpleDateFormat("dd", Locale.getDefault()).format(date) to
             SimpleDateFormat("MMM", Locale.getDefault()).format(date).uppercase(Locale.getDefault())
+    }
+
+    private fun isAdmin(): Boolean = prefs.role == "admin"
+
+    private fun runAction(service: Service, action: String, value: Any? = null, confirm: String? = null) {
+        val perform = {
+            executor.execute {
+                try {
+                    val result = Api.action(
+                        activeBase.ifEmpty { ServerResolver.active(prefs) },
+                        secure.token() ?: "",
+                        service.id,
+                        action,
+                        value,
+                    )
+                    handler.post {
+                        if (isFinishing || isDestroyed) return@post
+                        Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                        if (result.ok) handler.postDelayed({ load(true) }, 600)
+                    }
+                } catch (error: Exception) {
+                    handler.post {
+                        if (!isFinishing && !isDestroyed) {
+                            Toast.makeText(this, error.message ?: "Action failed", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+        }
+        if (confirm != null) {
+            AlertDialog.Builder(this)
+                .setMessage(confirm)
+                .setPositiveButton("Continue") { _, _ -> perform() }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } else {
+            perform()
+        }
     }
 
     private fun cardShell(title: String, onClick: () -> Unit): LinearLayout {

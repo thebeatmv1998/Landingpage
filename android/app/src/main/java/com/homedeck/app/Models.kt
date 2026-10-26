@@ -53,6 +53,7 @@ data class NowPlayingItem(
     val video: String,
     val audio: String,
     val bitrate: Long,
+    val controls: List<String> = emptyList(),
 )
 
 data class ContainerItem(
@@ -62,6 +63,24 @@ data class ContainerItem(
     val image: String,
     val url: String,
     val update: Boolean,
+    val id: String = "",
+)
+
+data class RequestCounts(
+    val open: Int = 0,
+    val approved: Int = 0,
+    val available: Int = 0,
+)
+
+data class RequestItem(
+    val id: Int,
+    val title: String,
+    val subtitle: String,
+    val user: String,
+    val poster: String,
+    val status: String,
+    val statusLabel: String,
+    val type: String,
 )
 
 data class HistoryItem(
@@ -106,6 +125,8 @@ data class Service(
     val activity: List<ActivityItem> = emptyList(),
     val nowPlaying: List<NowPlayingItem> = emptyList(),
     val containers: List<ContainerItem> = emptyList(),
+    val requests: List<RequestItem> = emptyList(),
+    val requestCounts: RequestCounts = RequestCounts(),
     val history: List<HistoryItem> = emptyList(),
     val calendar: List<CalendarItem> = emptyList(),
     val disks: List<UnraidDisk> = emptyList(),
@@ -125,6 +146,7 @@ data class PairResult(
     val username: String,
     val displayName: String,
     val serverTitle: String,
+    val role: String = "",
 )
 
 data class PairLink(val serverUrl: String, val code: String)

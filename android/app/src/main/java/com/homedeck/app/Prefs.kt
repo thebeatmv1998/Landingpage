@@ -39,6 +39,13 @@ class Prefs(context: Context) {
             sp.edit().putString("userName", value).apply()
         }
 
+    /** admin | user — unlocks container and request controls. */
+    var role: String
+        get() = sp.getString("role", "") ?: ""
+        set(value) {
+            sp.edit().putString("role", value).apply()
+        }
+
     var serverTitle: String
         get() = sp.getString("serverTitle", "HomeDeck") ?: "HomeDeck"
         set(value) {

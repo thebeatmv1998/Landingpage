@@ -61,6 +61,32 @@ object Ui {
         return frame
     }
 
+    /** Compact 32 dp icon button for inline row actions. */
+    fun smallIconButton(
+        context: Context,
+        @DrawableRes resource: Int,
+        tint: Int,
+        sizeDp: Int = 32,
+        iconDp: Int = 17,
+        onClick: () -> Unit,
+    ): FrameLayout {
+        val frame = FrameLayout(context)
+        frame.background = RippleDrawable(
+            ColorStateList.valueOf(withAlpha(tint, 45)),
+            circle(context, withAlpha(tint, 22), sizeDp / 2),
+            null,
+        )
+        frame.addView(
+            icon(context, resource, tint, iconDp),
+            FrameLayout.LayoutParams(dp(context, iconDp), dp(context, iconDp), Gravity.CENTER),
+        )
+        frame.layoutParams = LinearLayout.LayoutParams(dp(context, sizeDp), dp(context, sizeDp))
+        frame.isClickable = true
+        frame.isFocusable = true
+        frame.setOnClickListener { onClick() }
+        return frame
+    }
+
     fun button(context: Context, value: String, background: Int, foreground: Int, bold: Boolean = true): TextView {
         val button = text(context, value, 14f, foreground, bold)
         button.gravity = Gravity.CENTER
@@ -148,6 +174,42 @@ object Ui {
             onChange(on)
         }
         return chip
+    }
+
+    /** Small labelled pill for inline actions (pause, restart, approve, ...). */
+    fun actionButton(
+        context: Context,
+        palette: Palette,
+        label: String,
+        @DrawableRes resource: Int,
+        tint: Int,
+        onClick: () -> Unit,
+    ): LinearLayout {
+        val button = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(context, 9), dp(context, 5), dp(context, 10), dp(context, 5))
+            background = ripple(
+                context,
+                withAlpha(tint, 18),
+                18,
+                withAlpha(tint, 60),
+                tint,
+                40,
+            )
+            isClickable = true
+            isFocusable = true
+        }
+        button.addView(icon(context, resource, tint, 14))
+        button.addView(
+            text(context, label, 10f, palette.text, true),
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { leftMargin = dp(context, 4) },
+        )
+        button.setOnClickListener { onClick() }
+        return button
     }
 
     fun spacer(context: Context, heightDp: Int): View =
