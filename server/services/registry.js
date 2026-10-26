@@ -57,13 +57,15 @@ export const registry = [
     fields: [F.apiKey({ required: true, help: 'Seerr → Settings → General → API Key' })],
   },
   {
-    type: 'overseerr', label: 'Overseerr (legacy)', blurb: 'Media requests — legacy Overseerr installations',
+    type: 'overseerr', label: 'Overseerr (legacy)', blurb: 'Deprecated — use Seerr for new installs',
     category: 'Media', color: '#e5a00d', glyph: 'film', icon: '/icons/overseerr.webp', pollMs: 60000,
+    hidden: true,
     fields: [F.apiKey({ required: true, help: 'Overseerr → Settings → General → API Key' })],
   },
   {
-    type: 'jellyseerr', label: 'Jellyseerr (legacy)', blurb: 'Media requests — legacy Jellyseerr installations',
+    type: 'jellyseerr', label: 'Jellyseerr (legacy)', blurb: 'Deprecated — use Seerr for new installs',
     category: 'Media', color: '#8b5cf6', glyph: 'tv', icon: '/icons/jellyseerr.webp', pollMs: 60000,
+    hidden: true,
     fields: [F.apiKey({ required: true, help: 'Jellyseerr → Settings → General → API Key' })],
   },
   {

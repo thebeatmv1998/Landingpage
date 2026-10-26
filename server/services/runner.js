@@ -34,7 +34,7 @@ import nzbhydra from './connectors/nzbhydra.js';
 import sabnzbd from './connectors/sabnzbd.js';
 import jellyfin from './connectors/jellyfin.js';
 import audiobookshelf from './connectors/audiobookshelf.js';
-import overseerr from './connectors/overseerr.js';
+import seerr from './connectors/seerr.js';
 import navidrome from './connectors/navidrome.js';
 import nextcloud from './connectors/nextcloud.js';
 import pihole from './connectors/pihole.js';
@@ -50,7 +50,7 @@ import generic from './connectors/generic.js';
 
 const connectors = {
   sonarr, radarr, lidarr, prowlarr, nzbhydra, sabnzbd, jellyfin, audiobookshelf,
-  seerr: overseerr, overseerr, jellyseerr: overseerr,
+  seerr, overseerr: seerr, jellyseerr: seerr,
   navidrome, nextcloud, pihole, immich, komga, pingvin, stash, tachidesk, vaultwarden,
   docker, unraid, generic,
 };

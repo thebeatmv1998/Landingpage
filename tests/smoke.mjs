@@ -175,8 +175,6 @@ async function main() {
     { type: 'jellyfin', name: 'Jellyfin', url: 'http://127.0.0.1:9000/jellyfin', api_key: 'testkey-jf', category: 'Media' },
     { type: 'audiobookshelf', name: 'Audiobookshelf', url: 'http://127.0.0.1:9000/abs', api_key: 'testkey-abs', category: 'Media' },
     { type: 'seerr', name: 'Seerr', url: 'http://127.0.0.1:9000/seerr', api_key: 'testkey-seerr', category: 'Media' },
-    { type: 'overseerr', name: 'Overseerr', url: 'http://127.0.0.1:9000/overseerr', api_key: 'testkey-overseerr', category: 'Media' },
-    { type: 'jellyseerr', name: 'Jellyseerr', url: 'http://127.0.0.1:9000/jellyseerr', api_key: 'testkey-jellyseerr', category: 'Media' },
     { type: 'navidrome', name: 'Navidrome', url: 'http://127.0.0.1:9000/navidrome', username: 'naviuser', password: 'navipass', category: 'Media' },
     { type: 'nextcloud', name: 'Nextcloud', url: 'http://127.0.0.1:9000/nextcloud', username: 'ncadmin', password: 'ncpass', category: 'Cloud & Files' },
     { type: 'pihole', name: 'Pi-hole v6', url: 'http://127.0.0.1:9000/pihole', password: 'piholepass', category: 'Network' },
@@ -233,23 +231,10 @@ async function main() {
   const seerrSnap = (r.json?.services || []).find((s) => s.type === 'seerr');
   ok(seerrSnap?.requestCounts?.open === 1 && seerrSnap?.requestCounts?.approved === 3 && seerrSnap?.requestCounts?.available === 1,
     'Seerr request counts by status');
-
-  // Overseerr and Jellyseerr share the same request connector.
-  r = await call(`/api/services/${ids['Overseerr']}/action`, { method: 'POST', body: { action: 'approve_request', value: 1 } });
-  ok(r.status === 200 && r.json?.ok === true, 'Overseerr admin approve request');
-  r = await call(`/api/services/${ids['Jellyseerr']}/action`, { method: 'POST', body: { action: 'decline_request', value: 1 } });
-  ok(r.status === 200 && r.json?.ok === true, 'Jellyseerr admin decline request');
-  r = await call('/api/summary');
-  const ovSnap = (r.json?.services || []).find((s) => s.type === 'overseerr');
-  ok(ovSnap?.requestCounts?.open === 1 && ovSnap?.requestCounts?.approved === 3 && ovSnap?.requestCounts?.available === 1,
-    'Overseerr request counts by status');
-  ok(ovSnap?.requests?.some((x) => x.user === 'Alice' && String(x.poster).startsWith('https://image.tmdb.org/t/p/w342/')),
-    'Overseerr latest request includes poster and requester');
-  ok(ovSnap?.requests?.some((x) => x.title === 'Severance' && x.status === 'available'),
-    'Overseerr media availability is normalized');
-  const jsSnap = (r.json?.services || []).find((s) => s.type === 'jellyseerr');
-  ok(jsSnap?.requestCounts?.open === 1 && jsSnap?.requestCounts?.approved === 2 && jsSnap?.requestCounts?.available === 1,
-    'Jellyseerr uses the same connector and counts');
+  ok(seerrSnap?.requests?.some((x) => x.user === 'Alice' && String(x.poster).startsWith('https://image.tmdb.org/t/p/w342/')),
+    'Seerr latest request includes poster and requester');
+  ok(seerrSnap?.requests?.some((x) => x.title === 'Severance' && x.status === 'available'),
+    'Seerr media availability is normalized');
 
   // Komga supports API keys (X-API-Key) as an alternative to Basic auth.
   r = await call('/api/services', { method: 'POST', body: { type: 'komga', name: 'Komga API Key', url: 'http://127.0.0.1:9000/komga', api_key: 'testkey-komga' } });
@@ -465,8 +450,6 @@ async function main() {
   ok(r.status === 200, 'kid login');
   r = await call(`/api/services/${ids['Jellyfin']}/action`, { method: 'POST', as: 'kid', body: { action: 'stop', value: 'test-session' } });
   ok(r.status === 200 && r.json?.ok === true, 'non-admin can stop a Jellyfin playback session');
-  r = await call(`/api/services/${ids['Overseerr']}/action`, { method: 'POST', as: 'kid', body: { action: 'approve_request', value: 5 } });
-  ok(r.status === 403, 'non-admin cannot approve Overseerr requests');
   r = await call(`/api/services/${ids['Seerr']}/action`, { method: 'POST', as: 'kid', body: { action: 'approve_request', value: 5 } });
   ok(r.status === 403, 'non-admin cannot approve Seerr requests');
   r = await call('/api/summary', { as: 'kid' });

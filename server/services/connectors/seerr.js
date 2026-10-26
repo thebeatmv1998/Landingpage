@@ -1,5 +1,5 @@
-// Overseerr / Jellyseerr request connector.
-// Both projects share the same /api/v1 request API and X-Api-Key authentication.
+// Seerr request connector, with compatibility for legacy Overseerr/Jellyseerr
+// installations. They share the same /api/v1 request API and X-Api-Key auth.
 const API = '/api/v1';
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w342';
 

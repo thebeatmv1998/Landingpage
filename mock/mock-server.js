@@ -631,8 +631,6 @@ function overseerrRouter(version) {
   return router;
 }
 app.use('/seerr', overseerrRouter('3.0.0'));
-app.use('/overseerr', overseerrRouter('1.33.0'));
-app.use('/jellyseerr', overseerrRouter('2.1.0'));
 
 // ------------------------------------------------------------------ generic
 app.get('/generic/', (req, res) => res.status(200).send('hello'));

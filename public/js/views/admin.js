@@ -148,7 +148,7 @@ export async function renderAdmin(root, { navigate, tab: initialTab = 'services'
   }
 
   function openGallery() {
-    const body = h(`<div class="gallery">${REGISTRY.map((r) => `
+    const body = h(`<div class="gallery">${REGISTRY.filter((r) => !r.hidden).map((r) => `
       <div class="gallery-item" data-type="${esc(r.type)}">
         <span class="svc-ic${r.icon ? ' has-img' : ''}" style="--tile:${esc(r.color)}">
           <span class="svc-glyph-wrap">${icon(r.glyph)}</span>
