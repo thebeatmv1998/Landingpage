@@ -40,6 +40,7 @@ class ServiceDetailActivity : AppCompatActivity() {
     private var token: String = ""
     private var activeBase: String = ""
     private var loading = false
+    private var taskOverlay: TaskOverlay? = null
 
     private data class LiveRow(
         val time: TextView,
@@ -88,6 +89,7 @@ class ServiceDetailActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         handler.removeCallbacks(ticker)
+        taskOverlay?.dismiss()
         executor.shutdownNow()
         super.onDestroy()
     }
@@ -107,7 +109,7 @@ class ServiceDetailActivity : AppCompatActivity() {
         top.addView(Ui.iconButton(this, R.drawable.ic_back, palette.muted) { finish() })
         val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         titleView = Ui.text(this, initialName, 19f, palette.text, true)
-        subtitleView = Ui.text(this, "Loading…", 11f, palette.muted)
+        subtitleView = Ui.text(this, "Loadingâ€¦", 11f, palette.muted)
         subtitleView.setPadding(0, Ui.dp(this, 2), 0, 0)
         titles.addView(titleView)
         titles.addView(subtitleView)
@@ -140,7 +142,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                         renderError("This service is not available for your account.")
                     } else {
                         titleView.text = service.name
-                        subtitleView.text = "${service.category} · ${if (service.online) "online" else "offline"} · ${if (ServerResolver.isExternalActive(prefs)) "external" else "primary"}"
+                        subtitleView.text = "${service.category} Â· ${if (service.online) "online" else "offline"} Â· ${if (ServerResolver.isExternalActive(prefs)) "external" else "primary"}"
                         render(service)
                     }
                 }
@@ -178,7 +180,8 @@ class ServiceDetailActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        nameRow.addView(dot(statusColor(service)), Ui.margins(this, Ui.lp(Ui.dp(this, 9), Ui.dp(this, 9)), 0, 0, 8, 0))
+        val headIcon = Icons.service(this, palette, activeBase, service, token, 44)
+        nameRow.addView(headIcon, Ui.margins(this, Ui.lp(Ui.dp(this, 44), Ui.dp(this, 44)), 0, 0, 10, 0))
         nameRow.addView(Ui.text(this, service.name, 22f, palette.text, true), Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         if (Reachability.isExternal(service)) {
             nameRow.addView(Ui.icon(this, R.drawable.ic_globe, palette.accent, 16))
@@ -189,7 +192,7 @@ class ServiceDetailActivity : AppCompatActivity() {
         if (service.version.isNotEmpty()) meta.add("v${service.version}")
         if (service.serverName.isNotEmpty()) meta.add(service.serverName)
         header.addView(
-            Ui.text(this, meta.filter { it.isNotEmpty() }.joinToString(" · "), 11.5f, palette.muted),
+            Ui.text(this, meta.filter { it.isNotEmpty() }.joinToString(" Â· "), 11.5f, palette.muted),
             Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 4, 0, 0),
         )
 
@@ -230,7 +233,7 @@ class ServiceDetailActivity : AppCompatActivity() {
 
     private fun addPihole(service: Service) {
         if (service.charts.pihole.size < 2) return
-        val body = section("Queries · 24h")
+        val body = section("Queries Â· 24h")
 
         fun stat(label: String): String {
             val raw = service.stats.firstOrNull { it.label.equals(label, true) }?.value?.trim() ?: ""
@@ -338,7 +341,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                 body.addView(
                     progressRow(
                         disk.label.ifEmpty { "Disk" },
-                        "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)} · ${formatGB(disk.freeGB)} free",
+                        "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)} Â· ${formatGB(disk.freeGB)} free",
                         disk.percent,
                         if (disk.percent > 90) palette.bad else palette.accent,
                     ),
@@ -355,7 +358,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                 body.addView(
                     progressRow(
                         disk.label.ifEmpty { "Array" },
-                        "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)} · ${formatGB(disk.freeGB)} free",
+                        "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)} Â· ${formatGB(disk.freeGB)} free",
                         disk.percent,
                         if (disk.percent > 90) palette.bad else palette.accent,
                     ),
@@ -366,9 +369,9 @@ class ServiceDetailActivity : AppCompatActivity() {
         if (service.disks.isNotEmpty()) {
             val body = section("Disks")
             for (disk in service.disks) {
-                val sub = listOf(disk.used, "${disk.free} free", disk.temp?.let { "$it °C" } ?: "", disk.status)
+                val sub = listOf(disk.used, "${disk.free} free", disk.temp?.let { "$it Â°C" } ?: "", disk.status)
                     .filter { it.isNotBlank() }
-                    .joinToString(" · ")
+                    .joinToString(" Â· ")
                 body.addView(progressRow(disk.label, sub, disk.percent ?: 0, if ((disk.percent ?: 0) > 90) palette.bad else palette.accent), rowMargins())
             }
         }
@@ -413,7 +416,13 @@ class ServiceDetailActivity : AppCompatActivity() {
         if (service.type == "unraid" && isAdmin()) {
             body.addView(
                 Ui.actionButton(this, palette, "Update all", R.drawable.ic_update, palette.accent) {
-                    runAction(service, "update-all", confirm = "Update all containers? This can take a while.")
+                    runAction(
+                        service,
+                        "update-all",
+                        confirm = "Update all containers? This can take a while.",
+                        progressTitle = "Updating all containers",
+                        progressDetail = "Unraid is pulling images and recreating containers. This can take several minutes.",
+                    )
                 },
                 Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 0, 8),
             )
@@ -425,7 +434,10 @@ class ServiceDetailActivity : AppCompatActivity() {
                 setPadding(0, Ui.dp(this@ServiceDetailActivity, 7), 0, Ui.dp(this@ServiceDetailActivity, 7))
             }
             val running = container.state == "running"
-            row.addView(dot(if (running) palette.ok else palette.bad), Ui.margins(this, Ui.lp(Ui.dp(this, 8), Ui.dp(this, 8)), 0, 0, 9, 0))
+            row.addView(
+                Icons.container(this, palette, activeBase, service, container, token, 30),
+                Ui.margins(this, Ui.lp(Ui.dp(this, 30), Ui.dp(this, 30)), 0, 0, 9, 0),
+            )
             val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             val nameRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             nameRow.addView(Ui.text(this, container.name, 13f, palette.text, true))
@@ -438,7 +450,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                 nameRow.addView(badge, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0))
             }
             col.addView(nameRow)
-            val detail = listOf(container.image, container.status.ifEmpty { container.state }).filter { it.isNotBlank() }.joinToString(" · ")
+            val detail = listOf(container.image, container.status.ifEmpty { container.state }).filter { it.isNotBlank() }.joinToString(" Â· ")
             col.addView(Ui.text(this, detail, 10f, palette.muted).apply {
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
@@ -448,7 +460,13 @@ class ServiceDetailActivity : AppCompatActivity() {
                 if (container.update) {
                     actions.addView(
                         Ui.actionButton(this, palette, "Update", R.drawable.ic_update, palette.accent) {
-                            runAction(service, "update", container.id)
+                            runAction(
+                                service,
+                                "update",
+                                container.id,
+                                progressTitle = "Updating ${container.name}",
+                                progressDetail = "Pulling the image and recreating the container. This can take a few minutes.",
+                            )
                         },
                     )
                 }
@@ -501,7 +519,7 @@ class ServiceDetailActivity : AppCompatActivity() {
             if (artUrl.isNotEmpty()) ImageLoader.load(art, artUrl, token, activeBase)
             val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             col.addView(Ui.text(this, item.title, 13.5f, palette.text, true).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END })
-            val sub = listOf(item.subtitle, item.user, item.device).filter { it.isNotBlank() }.joinToString(" · ")
+            val sub = listOf(item.subtitle, item.user, item.device).filter { it.isNotBlank() }.joinToString(" Â· ")
             col.addView(Ui.text(this, sub, 10.5f, palette.muted).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END })
             val bar = progressBar(item.progress, if (item.paused) palette.warn else palette.accent)
             col.addView(bar, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 5)), 0, 6, 0, 0))
@@ -509,7 +527,7 @@ class ServiceDetailActivity : AppCompatActivity() {
             col.addView(timeView, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 3, 0, 0))
             val extra = listOf(if (item.paused) "paused" else "", item.video, item.audio, if (item.bitrate > 0) formatSpeed(item.bitrate) else "")
                 .filter { it.isNotBlank() }
-                .joinToString(" · ")
+                .joinToString(" Â· ")
             if (extra.isNotEmpty()) {
                 col.addView(Ui.text(this, extra, 9.5f, palette.faint), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0))
             }
@@ -704,7 +722,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                     ellipsize = TextUtils.TruncateAt.END
                 },
             )
-            val sub = listOf(request.subtitle, request.user).filter { it.isNotBlank() }.joinToString(" · ")
+            val sub = listOf(request.subtitle, request.user).filter { it.isNotBlank() }.joinToString(" Â· ")
             if (sub.isNotEmpty()) {
                 col.addView(
                     Ui.text(this, sub, 10f, palette.muted).apply {
@@ -857,7 +875,7 @@ class ServiceDetailActivity : AppCompatActivity() {
         Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 0, 10)
 
     private fun loadingCard(): View =
-        emptyCard("Loading…", "Fetching the latest data from HomeDeck.")
+        emptyCard("Loadingâ€¦", "Fetching the latest data from HomeDeck.")
 
     private fun renderError(message: String) {
         liveRows.clear()
@@ -889,8 +907,18 @@ class ServiceDetailActivity : AppCompatActivity() {
 
     private fun isAdmin(): Boolean = prefs.role == "admin"
 
-    private fun runAction(service: Service, action: String, value: Any? = null, confirm: String? = null) {
+    private fun runAction(
+        service: Service,
+        action: String,
+        value: Any? = null,
+        confirm: String? = null,
+        progressTitle: String? = null,
+        progressDetail: String = "",
+    ) {
         val perform = {
+            val task = progressTitle?.let {
+                TaskOverlay.show(this, palette, it, progressDetail).also { overlay -> taskOverlay = overlay }
+            }
             executor.execute {
                 try {
                     val result = Api.action(
@@ -902,14 +930,22 @@ class ServiceDetailActivity : AppCompatActivity() {
                     )
                     handler.post {
                         if (isFinishing || isDestroyed) return@post
-                        Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
-                        if (result.ok) handler.postDelayed({ load() }, 700)
+                        if (result.ok) {
+                            if (task != null) task.done(result.message)
+                            else Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                        } else if (task != null) {
+                            task.fail(result.message)
+                        } else {
+                            Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                        }
+                        if (result.ok) handler.postDelayed({ load() }, if (task != null) 1200 else 700)
                     }
                 } catch (error: Exception) {
+                    val message = error.message ?: "Action failed"
                     handler.post {
-                        if (!isFinishing && !isDestroyed) {
-                            Toast.makeText(this, error.message ?: "Action failed", Toast.LENGTH_LONG).show()
-                        }
+                        if (isFinishing || isDestroyed) return@post
+                        if (task != null) task.fail(message)
+                        else Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -943,7 +979,7 @@ class ServiceDetailActivity : AppCompatActivity() {
             val iso = raw.replace(" ", "T")
             val parsed = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).parse(iso.substringBefore('.').substringBefore('Z'))
                 ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(raw)
-            parsed?.let { SimpleDateFormat("EEE d MMM · HH:mm", Locale.getDefault()).format(it) } ?: raw
+            parsed?.let { SimpleDateFormat("EEE d MMM Â· HH:mm", Locale.getDefault()).format(it) } ?: raw
         } catch (_: Exception) {
             raw
         }

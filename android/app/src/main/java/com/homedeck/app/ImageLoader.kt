@@ -39,6 +39,19 @@ object ImageLoader {
         return "${baseUrl.trimEnd('/')}/api/proxy/${service.id}$path"
     }
 
+    /**
+     * Resolve service/container icons. Bundled HomeDeck icons (`/icons/...`) are
+     * served by the dashboard itself; absolute URLs and data URIs load directly.
+     */
+    fun iconUrl(baseUrl: String, service: Service?, icon: String): String {
+        val value = icon.trim()
+        if (value.isEmpty()) return ""
+        if (value.startsWith("data:image")) return value
+        if (value.startsWith("http://") || value.startsWith("https://")) return value
+        if (value.startsWith("/")) return baseUrl.trimEnd('/') + value
+        return if (service != null) artUrl(baseUrl, service, value) else ""
+    }
+
     private fun sameOrigin(a: String, b: String): Boolean {
         if (a.isEmpty() || b.isEmpty()) return false
         return try {
@@ -54,14 +67,36 @@ object ImageLoader {
         }
     }
 
-    fun load(view: ImageView, url: String, token: String, homeBase: String) {
+    fun load(view: ImageView, url: String, token: String, homeBase: String, onResult: ((Boolean) -> Unit)? = null) {
         if (url.isEmpty()) {
             view.setImageDrawable(null)
+            onResult?.invoke(false)
+            return
+        }
+        if (url.startsWith("data:image")) {
+            try {
+                val comma = url.indexOf(',')
+                if (comma < 0) {
+                    onResult?.invoke(false)
+                    return
+                }
+                val bytes = android.util.Base64.decode(url.substring(comma + 1), android.util.Base64.DEFAULT)
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                if (bitmap != null) {
+                    view.setImageBitmap(bitmap)
+                    onResult?.invoke(true)
+                } else {
+                    onResult?.invoke(false)
+                }
+            } catch (_: Exception) {
+                onResult?.invoke(false)
+            }
             return
         }
         val cached = cache.get(url)
         if (cached != null) {
             view.setImageBitmap(cached)
+            onResult?.invoke(true)
             return
         }
         view.tag = url
@@ -84,14 +119,22 @@ object ImageLoader {
                     }
                 }
                 val status = connection.responseCode
-                if (status !in 200..299) return@execute
-                val bitmap = connection.inputStream.use { BitmapFactory.decodeStream(it) } ?: return@execute
+                if (status !in 200..299) {
+                    main.post { onResult?.invoke(false) }
+                    return@execute
+                }
+                val bitmap = connection.inputStream.use { BitmapFactory.decodeStream(it) }
+                if (bitmap == null) {
+                    main.post { onResult?.invoke(false) }
+                    return@execute
+                }
                 cache.put(url, bitmap)
                 main.post {
                     if (view.tag == url) view.setImageBitmap(bitmap)
+                    onResult?.invoke(true)
                 }
             } catch (_: Exception) {
-                // keep the placeholder
+                main.post { onResult?.invoke(false) }
             } finally {
                 connection?.disconnect()
             }

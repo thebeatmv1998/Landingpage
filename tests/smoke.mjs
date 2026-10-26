@@ -234,6 +234,9 @@ async function main() {
   ok(deckWebp.status === 200 && (deckWebp.headers.get('content-type') || '').includes('image/webp'), 'HomeDeck WebP icon is served locally');
   const deckPng = await fetch(BASE + '/icons/homedeck.png');
   ok(deckPng.status === 200 && (deckPng.headers.get('content-type') || '').includes('image/png'), 'HomeDeck PNG icon for Unraid is served locally');
+  r = await fetch(BASE + '/js/task.js');
+  const taskJs = await r.text();
+  ok(r.status === 200 && taskJs.includes('export function showTask'), 'task progress module is served');
   r = await call(`/api/services/${ids['Seerr']}/action`, { method: 'POST', body: { action: 'approve_request', value: 1 } });
   ok(r.status === 200 && r.json?.ok === true, 'Seerr admin approve request');
   r = await call('/api/summary');
@@ -376,6 +379,7 @@ async function main() {
   ok(byName['Unraid']?.containers?.find((c) => c.name === 'pihole')?.icon === 'http://127.0.0.1:9000/icons/pihole.webp', 'relative Unraid icon resolved against the server');
   ok(byName['Unraid']?.containers?.find((c) => c.name === 'Stirling-PDF')?.icon === '/icons/stirling-pdf.webp', 'host-path icon falls back to the bundled Stirling PDF icon');
   ok(byName['Unraid']?.containers?.find((c) => c.name === 'HomeDeck')?.icon === '/icons/homedeck.webp', 'HomeDeck container uses its own bundled icon');
+  ok(byName['Seerr']?.iconUrl === '/icons/seerr.webp', 'summary exposes service icon URLs for the Android app');
   r = await call(`/api/services/${ids['Unraid']}/action`, { method: 'POST', body: { action: 'update', value: 'test-container' } });
   ok(r.status === 200 && r.json?.ok === true, 'Unraid container update action accepted');
   r = await call(`/api/services/${ids['Unraid']}/action`, { method: 'POST', body: { action: 'restart', value: 'c-sonarr' } });

@@ -830,3 +830,57 @@ a.cal-row:hover { background: var(--card2); text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001s !important; transition-duration: .001s !important; }
 }
+
+/* long-running action feedback (container updates) */
+.task-layer {
+  position: fixed; left: 0; right: 0; bottom: 20px; z-index: 130;
+  display: flex; justify-content: center; padding: 0 16px; pointer-events: none;
+}
+.task-card {
+  pointer-events: auto; position: relative; display: flex; align-items: center; gap: 16px;
+  width: min(92vw, 430px); padding: 16px 20px; border-radius: 18px;
+  background: var(--card2, #1e2427); border: 1px solid var(--line);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .45);
+  animation: task-in .22s ease;
+}
+@keyframes task-in {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.task-ring {
+  width: 34px; height: 34px; flex: none; border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, .14); border-top-color: var(--accent);
+  animation: task-spin .8s linear infinite;
+}
+.task-layer.is-done .task-ring { display: none; }
+.task-state {
+  display: none; width: 34px; height: 34px; flex: none; place-items: center; border-radius: 50%;
+}
+.task-layer.is-done .task-state { display: grid; animation: task-pop .3s ease; }
+.task-layer.is-ok .task-state { background: var(--ok-soft, rgba(95, 201, 141, .14)); color: var(--ok); }
+.task-layer.is-error .task-state { background: rgba(224, 96, 96, .14); color: var(--bad); }
+.task-state .ic { width: 20px; height: 20px; }
+.task-main { min-width: 0; flex: 1; }
+.task-title { font-weight: 700; font-size: 14px; color: var(--text); }
+.task-detail { font-size: 11.5px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
+.task-elapsed { font-size: 10.5px; color: var(--faint); margin-top: 5px; font-variant-numeric: tabular-nums; }
+@keyframes task-spin { to { transform: rotate(360deg); } }
+@keyframes task-pop {
+  0% { transform: scale(.6); opacity: 0; }
+  70% { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-ring { animation-duration: 2.4s; }
+}
+.docker-card.busy {
+  border-color: var(--accent);
+  animation: dc-busy 1.4s ease-in-out infinite;
+}
+.docker-card.is-updated {
+  border-color: var(--ok);
+  box-shadow: 0 0 0 1px rgba(95, 201, 141, .35), 0 0 22px rgba(95, 201, 141, .18);
+}
+@keyframes dc-busy {
+  50% { box-shadow: 0 0 0 1px rgba(201, 150, 63, .25), 0 0 18px rgba(201, 150, 63, .12); }
+}

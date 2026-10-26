@@ -99,6 +99,8 @@ object Api {
                     stats = stats,
                     version = str(j, "version"),
                     serverName = str(j, "serverName"),
+                    iconUrl = str(j, "iconUrl"),
+                    color = str(j, "color"),
                     activity = parseActivity(j.optJSONArray("activity")),
                     nowPlaying = parseNowPlaying(j.optJSONArray("nowPlaying")),
                     containers = parseContainers(j.optJSONArray("containers")),
@@ -205,6 +207,8 @@ object Api {
                     url = str(j, "url"),
                     update = j.optBoolean("update", false),
                     id = str(j, "id"),
+                    icon = str(j, "icon"),
+                    iconFallback = str(j, "iconFallback"),
                 ),
             )
         }

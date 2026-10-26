@@ -84,7 +84,7 @@ npm start          # listens on :8080, data stored in ./data
 | **Stash** | scenes, images, galleries, performers, play stats |
 | **Tachidesk / Suwayomi** | library size, categories, unread, downloads |
 | **Vaultwarden** | status, user count (with admin token) |
-| **Docker** | running/stopped/unhealthy containers via an opt-in Docker socket/proxy or Unraid — **container icons** (Unraid template icon, else bundled dashboardicons), click to open the WebUI, one-click **update / restart / stop / start** |
+| **Docker** | running/stopped/unhealthy containers via an opt-in Docker socket/proxy or Unraid - **container icons** (Unraid template icon, else bundled dashboardicons), click to open the WebUI, one-click **update / restart / stop / start** with **live progress feedback and a completion confirmation** |
 | **Generic** | any other app — up/down check + response time |
 
 All service credentials (API keys, passwords) are stored **AES-256-GCM encrypted** in the
@@ -113,8 +113,11 @@ compact cards, grouping and a refresh interval. Insights include an interactive
 Pi-hole 24 h chart (drag to inspect, series toggles), a live now-playing card,
 upcoming media, download queue, storage/Docker donuts and a tappable service-health
 strip. Admins can start/stop/restart/update containers and approve/decline Seerr
-requests right from the phone; playback and download queues can be paused, resumed
-or stopped. See `android/README.md` for build instructions (JDK 17 + Android SDK 35).
+requests right from the phone; updates show a progress card with elapsed time and
+a completion confirmation. Service and container **icons** are loaded from the
+dashboard (bundled WebP or Unraid template URL) with a coloured monogram fallback.
+Playback and download queues can be paused, resumed or stopped. See
+`android/README.md` for build instructions (JDK 17 + Android SDK 35).
 
 A prebuilt **release-signed APK** (`homedeck.apk`, Android 8.0+, version matches the
 server/release tag) is attached to the latest **GitHub Release** and also included in
@@ -211,7 +214,7 @@ Done — it appears in the admin gallery, the forms and the dashboard.
 ```bash
 npm run mock    # starts mock versions of every service API on :9000
 npm run unit    # unit tests for helpers (no network)
-npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 312 assertions)
+npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 314 assertions)
 npm test        # unit + smoke
 ```
 

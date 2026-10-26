@@ -12,8 +12,9 @@ the web dashboard.
 - **Control from your phone** — Docker/Unraid container **start, stop, restart and
   update** (including update-all), SABnzbd queue and per-download pause/resume,
   Jellyfin **pause/resume/stop**, and Seerr **approve/decline** for pending
-  requests. Admin-only controls are hidden for regular users; the server enforces
-  the same rules.
+  requests. Container updates show a **non-blocking progress card with elapsed
+  time and a clear completion/failure confirmation**. Admin-only controls are
+  hidden for regular users; the server enforces the same rules.
 - **Interactive insights** — full-width Pi-hole 24 h chart with a drag-to-inspect
   crosshair (time, queries, blocked, block rate), series toggles and an animated
   reveal; now-playing mini player with live progress; upcoming media, download

@@ -934,14 +934,43 @@ export function renderDocker(body, ctx) {
     e.stopPropagation();
     btn.disabled = true;
     btn.classList.add('loading');
-    const res = await ctx.runServiceAction(Number(btn.dataset.svc), { action: 'update', value: btn.dataset.update });
-    // Keep the spinner until the next snapshot arrives; restore on failure.
-    if (!res?.ok) { btn.disabled = false; btn.classList.remove('loading'); }
+    const card = btn.closest('.docker-card');
+    const name = card?.querySelector('.dc-name')?.textContent?.trim() || 'container';
+    card?.classList.add('busy');
+    const res = await ctx.runServiceAction(
+      Number(btn.dataset.svc),
+      { action: 'update', value: btn.dataset.update },
+      {
+        progress: {
+          title: `Updating ${name}`,
+          detail: 'Pulling the image and recreating the container. This can take a few minutes — keep this tab open.',
+        },
+      },
+    );
+    card?.classList.remove('busy');
+    if (!res?.ok) {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    } else {
+      card?.classList.add('is-updated');
+      setTimeout(() => card?.classList.remove('is-updated'), 2600);
+      setTimeout(() => ctx.rerenderWidget('docker'), 900);
+    }
   }));
   const allBtn = body.querySelector('[data-update-all]');
   if (allBtn) allBtn.addEventListener('click', async () => {
     allBtn.disabled = true;
-    await ctx.runServiceAction(Number(allBtn.dataset.updateAll), { action: 'update-all' });
+    const res = await ctx.runServiceAction(
+      Number(allBtn.dataset.updateAll),
+      { action: 'update-all' },
+      {
+        progress: {
+          title: 'Updating all containers',
+          detail: 'Unraid is pulling images and recreating containers. This can take several minutes — keep this tab open.',
+        },
+      },
+    );
+    if (!res?.ok) allBtn.disabled = false;
   });
   body.querySelectorAll('[data-docker]').forEach((btn) => btn.addEventListener('click', async (e) => {
     e.preventDefault();

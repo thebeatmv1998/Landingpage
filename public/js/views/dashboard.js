@@ -1,6 +1,7 @@
 import { state, savePrefs, effectiveAppearance } from '../state.js';
 import { API } from '../api.js';
 import { esc, h, icon, toast, modal, confirmModal, debounce } from '../ui.js';
+import { showTask } from '../task.js';
 import { createDashGrid } from '../grid.js';
 import { WIDGETS, renderClock, renderWeather, renderServices, renderNowPlaying, renderRequests, renderDownloads, renderPihole, renderDisks, renderIndexers, renderDocker, renderHealth, renderCalendar, renderUnraid, renderNextcloud } from './widgets.js';
 import { probeService, probeServices, onReachability } from '../net.js';
@@ -137,15 +138,23 @@ export async function renderDashboard(root, { navigate }) {
         }
       },
       openAdminServiceEdit: (id) => { navigate('#/settings?tab=services'); try { sessionStorage.setItem('hd-edit-service', String(id)); } catch { /* private mode */ } },
-      runServiceAction: async (serviceId, payload) => {
+      runServiceAction: async (serviceId, payload, options = {}) => {
+        const task = options.progress ? showTask(options.progress) : null;
         try {
           const res = await API.serviceAction(serviceId, payload);
-          if (res?.ok && res.message) toast(res.message, 'success');
-          if (!res?.ok) toast(res?.message || 'Action failed', 'error');
+          if (res?.ok) {
+            if (task) task.done(res.message);
+            else if (res.message) toast(res.message, 'success');
+          } else {
+            const message = res?.message || 'Action failed';
+            if (task) task.fail(message);
+            else toast(message, 'error');
+          }
           return res;
         } catch (err) {
-          toast(err.message, 'error');
-          return { ok: false };
+          if (task) task.fail(err.message);
+          else toast(err.message, 'error');
+          return { ok: false, message: err.message };
         }
       },
     };

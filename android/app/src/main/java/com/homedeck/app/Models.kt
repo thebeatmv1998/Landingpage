@@ -64,6 +64,8 @@ data class ContainerItem(
     val url: String,
     val update: Boolean,
     val id: String = "",
+    val icon: String = "",
+    val iconFallback: String = "",
 )
 
 data class RequestCounts(
@@ -122,6 +124,8 @@ data class Service(
     val stats: List<Stat>,
     val version: String = "",
     val serverName: String = "",
+    val iconUrl: String = "",
+    val color: String = "",
     val activity: List<ActivityItem> = emptyList(),
     val nowPlaying: List<NowPlayingItem> = emptyList(),
     val containers: List<ContainerItem> = emptyList(),

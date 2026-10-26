@@ -867,6 +867,28 @@ class MainActivity : AppCompatActivity() {
         }
         row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 8, 0, 0, 0))
         card.addView(row, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0))
+        if (service.containers.isNotEmpty()) {
+            val strip = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            for (container in service.containers.take(7)) {
+                strip.addView(
+                    Icons.container(
+                        this,
+                        palette,
+                        activeBase.ifEmpty { ServerResolver.active(prefs) },
+                        service,
+                        container,
+                        secure.token() ?: "",
+                        22,
+                        false,
+                    ),
+                    Ui.margins(this, Ui.lp(Ui.dp(this, 22), Ui.dp(this, 22)), 0, 0, 4, 0),
+                )
+            }
+            card.addView(strip, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 7, 0, 0))
+        }
         return card
     }
 
@@ -1075,18 +1097,25 @@ class MainActivity : AppCompatActivity() {
             isFocusable = true
             alpha = if (service.online) 1f else 0.72f
         }
-        val stripeColor = when {
-            !service.online -> palette.bad
-            service.stale -> palette.warn
-            else -> palette.ok
-        }
-        val stripe = View(this).apply {
-            background = Ui.rounded(this@MainActivity, stripeColor, 2)
-        }
-        card.addView(stripe, LinearLayout.LayoutParams(Ui.dp(this, 4), Ui.dp(this, if (prefs.compact) 30 else 38)))
+        val icon = Icons.service(
+            this,
+            palette,
+            activeBase.ifEmpty { ServerResolver.active(prefs) },
+            service,
+            secure.token() ?: "",
+            if (prefs.compact) 32 else 38,
+        )
+        card.addView(
+            icon,
+            Ui.margins(
+                this,
+                Ui.lp(Ui.dp(this, if (prefs.compact) 32 else 38), Ui.dp(this, if (prefs.compact) 32 else 38)),
+                0, 0, 0, 0,
+            ),
+        )
 
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        content.setPadding(Ui.dp(this, 12), 0, 0, 0)
+        content.setPadding(Ui.dp(this, 11), 0, 0, 0)
 
         val nameRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
