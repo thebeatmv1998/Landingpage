@@ -109,7 +109,7 @@ class ServiceDetailActivity : AppCompatActivity() {
         top.addView(Ui.iconButton(this, R.drawable.ic_back, palette.muted) { finish() })
         val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         titleView = Ui.text(this, initialName, 19f, palette.text, true)
-        subtitleView = Ui.text(this, "Loadingâ€¦", 11f, palette.muted)
+        subtitleView = Ui.text(this, "Loading…", 11f, palette.muted)
         subtitleView.setPadding(0, Ui.dp(this, 2), 0, 0)
         titles.addView(titleView)
         titles.addView(subtitleView)
@@ -142,7 +142,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                         renderError("This service is not available for your account.")
                     } else {
                         titleView.text = service.name
-                        subtitleView.text = "${service.category} Â· ${if (service.online) "online" else "offline"} Â· ${if (ServerResolver.isExternalActive(prefs)) "external" else "primary"}"
+                        subtitleView.text = "${service.category} · ${if (service.online) "online" else "offline"} · ${if (ServerResolver.isExternalActive(prefs)) "external" else "primary"}"
                         try {
                             render(service)
                         } catch (t: Throwable) {
@@ -197,7 +197,7 @@ class ServiceDetailActivity : AppCompatActivity() {
         if (service.version.isNotEmpty()) meta.add("v${service.version}")
         if (service.serverName.isNotEmpty()) meta.add(service.serverName)
         header.addView(
-            Ui.text(this, meta.filter { it.isNotEmpty() }.joinToString(" Â· "), 11.5f, palette.muted),
+            Ui.text(this, meta.filter { it.isNotEmpty() }.joinToString(" · "), 11.5f, palette.muted),
             Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 4, 0, 0),
         )
 
@@ -238,7 +238,7 @@ class ServiceDetailActivity : AppCompatActivity() {
 
     private fun addPihole(service: Service) {
         if (service.charts.pihole.size < 2) return
-        val body = section("Queries Â· 24h")
+        val body = section("Queries · 24h")
 
         fun stat(label: String): String {
             val raw = service.stats.firstOrNull { it.label.equals(label, true) }?.value?.trim() ?: ""
@@ -346,7 +346,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                 body.addView(
                     progressRow(
                         disk.label.ifEmpty { "Disk" },
-                        "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)} Â· ${formatGB(disk.freeGB)} free",
+                        "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)} · ${formatGB(disk.freeGB)} free",
                         disk.percent,
                         if (disk.percent > 90) palette.bad else palette.accent,
                     ),
@@ -363,7 +363,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                 body.addView(
                     progressRow(
                         disk.label.ifEmpty { "Array" },
-                        "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)} Â· ${formatGB(disk.freeGB)} free",
+                        "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)} · ${formatGB(disk.freeGB)} free",
                         disk.percent,
                         if (disk.percent > 90) palette.bad else palette.accent,
                     ),
@@ -374,9 +374,9 @@ class ServiceDetailActivity : AppCompatActivity() {
         if (service.disks.isNotEmpty()) {
             val body = section("Disks")
             for (disk in service.disks) {
-                val sub = listOf(disk.used, "${disk.free} free", disk.temp?.let { "$it Â°C" } ?: "", disk.status)
+                val sub = listOf(disk.used, "${disk.free} free", disk.temp?.let { "$it °C" } ?: "", disk.status)
                     .filter { it.isNotBlank() }
-                    .joinToString(" Â· ")
+                    .joinToString(" · ")
                 body.addView(progressRow(disk.label, sub, disk.percent ?: 0, if ((disk.percent ?: 0) > 90) palette.bad else palette.accent), rowMargins())
             }
         }
@@ -455,7 +455,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                 nameRow.addView(badge, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0))
             }
             col.addView(nameRow)
-            val detail = listOf(container.image, container.status.ifEmpty { container.state }).filter { it.isNotBlank() }.joinToString(" Â· ")
+            val detail = listOf(container.image, container.status.ifEmpty { container.state }).filter { it.isNotBlank() }.joinToString(" · ")
             col.addView(Ui.text(this, detail, 10f, palette.muted).apply {
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
@@ -524,7 +524,7 @@ class ServiceDetailActivity : AppCompatActivity() {
             if (artUrl.isNotEmpty()) ImageLoader.load(art, artUrl, token, activeBase)
             val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             col.addView(Ui.text(this, item.title, 13.5f, palette.text, true).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END })
-            val sub = listOf(item.subtitle, item.user, item.device).filter { it.isNotBlank() }.joinToString(" Â· ")
+            val sub = listOf(item.subtitle, item.user, item.device).filter { it.isNotBlank() }.joinToString(" · ")
             col.addView(Ui.text(this, sub, 10.5f, palette.muted).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END })
             val bar = progressBar(item.progress, if (item.paused) palette.warn else palette.accent)
             col.addView(bar, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 5)), 0, 6, 0, 0))
@@ -532,7 +532,7 @@ class ServiceDetailActivity : AppCompatActivity() {
             col.addView(timeView, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 3, 0, 0))
             val extra = listOf(if (item.paused) "paused" else "", item.video, item.audio, if (item.bitrate > 0) formatSpeed(item.bitrate) else "")
                 .filter { it.isNotBlank() }
-                .joinToString(" Â· ")
+                .joinToString(" · ")
             if (extra.isNotEmpty()) {
                 col.addView(Ui.text(this, extra, 9.5f, palette.faint), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0))
             }
@@ -727,7 +727,7 @@ class ServiceDetailActivity : AppCompatActivity() {
                     ellipsize = TextUtils.TruncateAt.END
                 },
             )
-            val sub = listOf(request.subtitle, request.user).filter { it.isNotBlank() }.joinToString(" Â· ")
+            val sub = listOf(request.subtitle, request.user).filter { it.isNotBlank() }.joinToString(" · ")
             if (sub.isNotEmpty()) {
                 col.addView(
                     Ui.text(this, sub, 10f, palette.muted).apply {
@@ -880,7 +880,7 @@ class ServiceDetailActivity : AppCompatActivity() {
         Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 0, 10)
 
     private fun loadingCard(): View =
-        emptyCard("Loadingâ€¦", "Fetching the latest data from HomeDeck.")
+        emptyCard("Loading…", "Fetching the latest data from HomeDeck.")
 
     private fun renderError(message: String) {
         liveRows.clear()
@@ -984,7 +984,7 @@ class ServiceDetailActivity : AppCompatActivity() {
             val iso = raw.replace(" ", "T")
             val parsed = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).parse(iso.substringBefore('.').substringBefore('Z'))
                 ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(raw)
-            parsed?.let { SimpleDateFormat("EEE d MMM Â· HH:mm", Locale.getDefault()).format(it) } ?: raw
+            parsed?.let { SimpleDateFormat("EEE d MMM · HH:mm", Locale.getDefault()).format(it) } ?: raw
         } catch (_: Exception) {
             raw
         }

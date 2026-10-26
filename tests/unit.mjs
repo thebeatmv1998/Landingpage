@@ -84,4 +84,22 @@ ok(/versionCode\s*=\s*computedVersionCode/.test(gradle), 'Android versionCode is
 const releaseSh = fs.readFileSync(new URL('../release.sh', import.meta.url), 'utf8');
 ok(/APK versionName .* package\.json/.test(releaseSh), 'release.sh refuses a mismatched APK version');
 
+console.log('— source encoding');
+const mojibakeRe = new RegExp('[\u00c2][\u00b7\u00b0]|[\u00e2][\u20ac][\u00a6\u201c\u201d]');
+function encodingOffenders(dir, extRe) {
+  const bad = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
+    if (entry.isDirectory()) bad.push(...encodingOffenders(full, extRe));
+    else if (extRe.test(entry.name)) {
+      if (mojibakeRe.test(fs.readFileSync(full, 'utf8'))) bad.push(entry.name);
+    }
+  }
+  return bad;
+}
+const kotlinBad = encodingOffenders(new URL('../android/app/src/main/java/com/homedeck/app/', import.meta.url), /\.kt$/);
+ok(kotlinBad.length === 0, `Android sources are clean UTF-8${kotlinBad.length ? ` (${kotlinBad.join(', ')})` : ''}`);
+const webBad = encodingOffenders(new URL('../public/', import.meta.url), /\.(js|css|html)$/);
+ok(webBad.length === 0, `Web sources are clean UTF-8${webBad.length ? ` (${webBad.join(', ')})` : ''}`);
+
 console.log(`\n==== UNIT RESULTS: ${passed} passed, 0 failed ====`);
