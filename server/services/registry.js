@@ -161,6 +161,11 @@ for (const entry of registry) {
 export function bundledIconFor(name = '', image = '') {
   const n = String(name || '').toLowerCase();
   const img = String(image || '').toLowerCase();
+  // Docker-only apps that do not have a HomeDeck service connector.
+  if (/stirling[\s._-]*pdf/.test(n) || n === 's-pdf' || n.startsWith('s-pdf-')
+    || /stirling[\s._-]*pdf/.test(img) || /(^|\/)s-pdf(?::|@|$)/.test(img)) {
+    return '/icons/stirling-pdf.webp';
+  }
   for (const r of registry) {
     if (!r.icon) continue;
     const key = r.type;

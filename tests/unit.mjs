@@ -65,5 +65,9 @@ ok(bundledIconFor('sonarr', 'linuxserver/sonarr') === '/icons/sonarr.webp', 'ico
 ok(bundledIconFor('my-jellyfin', '') === '/icons/jellyfin.webp', 'icon by partial name');
 ok(bundledIconFor('media', 'lscr.io/linuxserver/radarr') === '/icons/radarr.webp', 'icon by image name');
 ok(bundledIconFor('random-app', 'nginx') === '', 'no false icon match');
+ok(bundledIconFor('Stirling-PDF', '') === '/icons/stirling-pdf.webp', 'Stirling PDF icon by container name');
+ok(bundledIconFor('StirlingPDF', '') === '/icons/stirling-pdf.webp', 'StirlingPDF icon without separator');
+ok(bundledIconFor('pdf', 'frooodle/s-pdf:latest') === '/icons/stirling-pdf.webp', 'Stirling PDF icon by s-pdf image');
+ok(bundledIconFor('pdf', 'stirlingtools/stirling-pdf:latest') === '/icons/stirling-pdf.webp', 'Stirling PDF icon by stirling-pdf image');
 
 console.log(`\n==== UNIT RESULTS: ${passed} passed, 0 failed ====`);

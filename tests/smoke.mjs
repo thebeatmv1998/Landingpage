@@ -225,6 +225,8 @@ async function main() {
   ok(seerrReg?.icon === '/icons/seerr.webp', 'Seerr registry entry exposes the local icon');
   const seerrIcon = await fetch(BASE + '/icons/seerr.webp');
   ok(seerrIcon.status === 200 && (seerrIcon.headers.get('content-type') || '').includes('image/webp'), 'Seerr icon is served locally');
+  const stirlingIcon = await fetch(BASE + '/icons/stirling-pdf.webp');
+  ok(stirlingIcon.status === 200 && (stirlingIcon.headers.get('content-type') || '').includes('image/webp'), 'Stirling PDF icon is served locally');
   r = await call(`/api/services/${ids['Seerr']}/action`, { method: 'POST', body: { action: 'approve_request', value: 1 } });
   ok(r.status === 200 && r.json?.ok === true, 'Seerr admin approve request');
   r = await call('/api/summary');
