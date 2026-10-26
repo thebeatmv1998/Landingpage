@@ -867,9 +867,10 @@ export function renderDocker(body, ctx) {
       : `<span class="dc-name">${esc(c.name)}</span>`;
     const actionSvc = c.actionServiceId || updateSvc?.id;
     const iconSrc = c.icon || '';
+    const iconFallback = c.iconFallback || '';
     const tile = `<span class="ci-icon${iconSrc ? ' has-img' : ''}">
       <span class="ci-glyph">${icon('cube')}</span>
-      ${iconSrc ? `<img class="ci-img" src="${esc(iconSrc)}" alt="" loading="lazy">` : ''}
+      ${iconSrc ? `<img class="ci-img" src="${esc(iconSrc)}"${iconFallback ? ` data-fallback="${esc(iconFallback)}"` : ''} alt="" loading="lazy">` : ''}
     </span>`;
     const actions = [
       c.update && c.id && actionSvc

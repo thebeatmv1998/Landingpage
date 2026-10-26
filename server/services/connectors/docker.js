@@ -52,14 +52,18 @@ export default {
     const containers = list.map((c) => {
       const name = (c.Names?.[0] || '/unknown').replace(/^\//, '');
       // Unraid templates put the icon URL in a container label.
-      const icon = (c.Labels && c.Labels['net.unraid.docker.icon']) || bundledIconFor(name, c.Image);
+      const labelIcon = (c.Labels && c.Labels['net.unraid.docker.icon']) || '';
+      const bundled = bundledIconFor(name, c.Image);
       return {
         id: c.Id.slice(0, 12),
         name,
         image: c.Image,
         state: c.State,
         status: shortStatus(c.State, c.Status),
-        icon,
+        // If the template points at a dead/blocked URL, the UI retries with
+        // the bundled icon instead of falling back to the generic cube.
+        icon: labelIcon || bundled,
+        iconFallback: labelIcon ? bundled : '',
       };
     });
     const running = containers.filter((c) => c.state === 'running').length;

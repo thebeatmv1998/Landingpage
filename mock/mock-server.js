@@ -54,6 +54,10 @@ const UNRAID_CONTAINERS = [
   { id: 'c-jellyfin', names: ['/jellyfin'], state: 'RUNNING', image: 'lscr.io/linuxserver/jellyfin', status: 'Up 2 days', webUiUrl: 'http://192.168.1.10:8096', iconUrl: 'https://cdn.example.test/jellyfin.webp' },
   { id: 'c-sonarr', names: ['/sonarr'], state: 'RUNNING', image: 'lscr.io/linuxserver/sonarr', status: 'Up 2 days', isUpdateAvailable: true, ports: [{ privatePort: 8989, publicPort: 8989, type: 'TCP', ip: '0.0.0.0' }] },
   { id: 'c-pihole', names: ['/pihole'], state: 'RUNNING', image: 'pihole/pihole', status: 'Up 2 days', lanIpPorts: ['192.168.1.10:8081'], iconUrl: '/icons/pihole.webp' },
+  // Template icon stored on the Unraid host (not reachable over HTTP) and a
+  // container that only has a bundled icon.
+  { id: 'c-stirling', names: ['/Stirling-PDF'], state: 'RUNNING', image: 'stirlingtools/stirling-pdf:latest', status: 'Up 4 hours', iconUrl: '/mnt/user/appdata/stirling-pdf/stirling.png' },
+  { id: 'c-homedeck', names: ['/HomeDeck'], state: 'RUNNING', image: 'homedeck-usenet:latest', status: 'Up 1 hour' },
   { id: 'c-old', names: ['/old-thing'], state: 'EXITED', image: 'old/thing', status: 'Exited (0) 3 days ago' },
 ];
 const CAL_ITEM = { id: 9, seriesId: 1, episodeFileId: 0, seasonNumber: 2, episodeNumber: 7, title: 'The Flash', airDateUtc: new Date(Date.now() + 36e5 * 30).toISOString(), hasFile: false, grabbed: true,

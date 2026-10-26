@@ -144,7 +144,10 @@ function diskStateDot(status) {
 function resolveIcon(url, base) {
   const u = String(url || '').trim();
   if (!u) return '';
-  if (/^https?:\/\//i.test(u)) return u;
+  if (/^(https?:|data:image\/)/i.test(u)) return u;
+  // Templates sometimes store a path on the Unraid host (e.g. /mnt/user/...).
+  // That is not reachable over HTTP; return empty so the bundled icon wins.
+  if (/^\/(mnt|boot|usr|etc|var|root|home)\//i.test(u)) return '';
   try { return new URL(u, base).toString(); } catch { return ''; }
 }
 
@@ -295,6 +298,8 @@ export default {
       stats.push({ label: 'Containers', value: `${running}/${list.length}` });
       containers = list.map((c) => {
         const name = (Array.isArray(c.names) ? c.names[0] : c.names || 'unknown').replace(/^\//, '');
+        const icon = resolveIcon(c.iconUrl, ctx.base);
+        const bundled = bundledIconFor(name, c.image);
         return {
           id: c.id || '',
           name,
@@ -303,7 +308,8 @@ export default {
           image: c.image || '',
           update: !!c.isUpdateAvailable,
           url: resolveWebUi(c, host),
-          icon: resolveIcon(c.iconUrl, ctx.base) || bundledIconFor(name, c.image),
+          icon: icon || bundled,
+          iconFallback: icon ? bundled : '',
         };
       });
     }

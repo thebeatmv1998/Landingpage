@@ -18,6 +18,8 @@ services:
       # Auf 1 setzen, wenn HomeDeck hinter einem HTTPS-Reverse-Proxy läuft:
       - TRUST_PROXY=0
       - SECURE_COOKIES=0
+    labels:
+      - "net.unraid.docker.icon=https://raw.githubusercontent.com/thebeatmv1998/Landingpage/master/public/icons/homedeck.png"
     security_opt:
       - no-new-privileges:true
     cap_drop:

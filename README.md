@@ -205,7 +205,7 @@ Done — it appears in the admin gallery, the forms and the dashboard.
 ```bash
 npm run mock    # starts mock versions of every service API on :9000
 npm run unit    # unit tests for helpers (no network)
-npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 305 assertions)
+npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 310 assertions)
 npm test        # unit + smoke
 ```
 
@@ -244,6 +244,9 @@ Then create the container via **Docker → Add Container** (manual fields) — s
 - Service logos are bundled locally as WebP files in `public/icons/` (from
   [dashboardicons.com](https://dashboardicons.com)) so nothing loads from a CDN. Any service can
   override its logo with an **Icon URL** in the admin UI.
+- Docker/Unraid container icons use the template icon first and fall back to the bundled icon when
+  the URL is dead, blocked or a host path (`/mnt/...`). HomeDeck's own container icon is included;
+  the image declares `net.unraid.docker.icon` and `unraid/homedeck.xml` sets `<Icon>`.
 - Text responses (HTML/CSS/JS/JSON) are served with **Brotli/gzip**; the SSE stream is never compressed.
 - The Nextcloud widget reads the **serverinfo** app (Settings → Apps) with an admin account/app
   password. If it's unavailable, the widget/service shows an explanatory error instead of empty tiles.

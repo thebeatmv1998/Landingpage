@@ -69,5 +69,8 @@ ok(bundledIconFor('Stirling-PDF', '') === '/icons/stirling-pdf.webp', 'Stirling 
 ok(bundledIconFor('StirlingPDF', '') === '/icons/stirling-pdf.webp', 'StirlingPDF icon without separator');
 ok(bundledIconFor('pdf', 'frooodle/s-pdf:latest') === '/icons/stirling-pdf.webp', 'Stirling PDF icon by s-pdf image');
 ok(bundledIconFor('pdf', 'stirlingtools/stirling-pdf:latest') === '/icons/stirling-pdf.webp', 'Stirling PDF icon by stirling-pdf image');
+ok(bundledIconFor('HomeDeck', '') === '/icons/homedeck.webp', 'HomeDeck container uses the app icon');
+ok(bundledIconFor('landingpage', '') === '/icons/homedeck.webp', 'Landingpage container uses the HomeDeck icon');
+ok(bundledIconFor('homedeck-usenet', 'homedeck-usenet:latest') === '/icons/homedeck.webp', 'HomeDeck image variant uses the app icon');
 
 console.log(`\n==== UNIT RESULTS: ${passed} passed, 0 failed ====`);

@@ -1,0 +1,69 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="HomeDeck">
+  <title>HomeDeck</title>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="32" x2="448" y2="496" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#232b33"/>
+      <stop offset="0.5" stop-color="#141a1f"/>
+      <stop offset="1" stop-color="#0b0e11"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(116 92) scale(372)">
+      <stop offset="0" stop-color="#e4b45f" stop-opacity="0.24"/>
+      <stop offset="0.62" stop-color="#c9963f" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#c9963f" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="#a8bccd" fill-opacity="0.1"/>
+    </pattern>
+    <linearGradient id="amber" x1="130" y1="224" x2="142" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f2ce85"/>
+      <stop offset="1" stop-color="#c9963f"/>
+    </linearGradient>
+    <linearGradient id="barAmber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2ce85"/>
+      <stop offset="1" stop-color="#c9963f"/>
+    </linearGradient>
+    <linearGradient id="cardFront" x1="256" y1="196" x2="256" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#333d47"/>
+      <stop offset="1" stop-color="#1b2228"/>
+    </linearGradient>
+    <linearGradient id="cardBack" x1="256" y1="118" x2="256" y2="306" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#29333c"/>
+      <stop offset="1" stop-color="#171d22"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <rect width="512" height="512" fill="url(#dots)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="140" y="116" width="232" height="158" rx="26" fill="url(#cardBack)"
+          stroke="#46535e" stroke-opacity="0.75" transform="rotate(-19 256 198)"/>
+    <rect x="140" y="116" width="232" height="158" rx="26" fill="url(#cardBack)"
+          stroke="#4c5b67" stroke-opacity="0.85" transform="rotate(12 256 198)"/>
+    <rect x="102" y="190" width="308" height="210" rx="30" fill="url(#cardFront)"
+          stroke="#55646f" stroke-opacity="0.85"/>
+  </g>
+
+  <rect x="130" y="224" width="12" height="76" rx="6" fill="url(#amber)"/>
+  <rect x="158" y="228" width="132" height="16" rx="8" fill="#dbe4ec" fill-opacity="0.9"/>
+  <rect x="158" y="256" width="92" height="12" rx="6" fill="#93a3b1" fill-opacity="0.65"/>
+
+  <circle cx="378" cy="238" r="16" fill="#5fc98d" fill-opacity="0.16"/>
+  <circle cx="378" cy="238" r="9" fill="#5fc98d"/>
+
+  <rect x="300" y="274" width="38" height="38" rx="9" fill="#39454f"/>
+  <rect x="346" y="274" width="38" height="38" rx="9" fill="#39454f"/>
+  <rect x="300" y="320" width="38" height="38" rx="9" fill="#39454f"/>
+  <rect x="346" y="320" width="38" height="38" rx="9" fill="url(#barAmber)" fill-opacity="0.9"/>
+
+  <rect x="130" y="320" width="20" height="46" rx="6" fill="#46545f"/>
+  <rect x="164" y="298" width="20" height="68" rx="6" fill="#55646f"/>
+  <rect x="198" y="312" width="20" height="54" rx="6" fill="#46545f"/>
+  <rect x="232" y="282" width="20" height="84" rx="6" fill="url(#barAmber)"/>
+</svg>
+
+

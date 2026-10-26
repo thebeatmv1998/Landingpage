@@ -166,6 +166,9 @@ export function bundledIconFor(name = '', image = '') {
     || /stirling[\s._-]*pdf/.test(img) || /(^|\/)s-pdf(?::|@|$)/.test(img)) {
     return '/icons/stirling-pdf.webp';
   }
+  // HomeDeck itself (container names "homedeck", "homedeck-usenet", "landingpage").
+  const selfIcon = /(^|[\/:._-])(homedeck|landingpage)([\/:._-]|$)/;
+  if (selfIcon.test(n) || selfIcon.test(img)) return '/icons/homedeck.webp';
   for (const r of registry) {
     if (!r.icon) continue;
     const key = r.type;

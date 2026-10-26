@@ -23,7 +23,7 @@
   <Category>Network:Web Productivity:Tools: Status:Stable</Category>
   <WebUI>http://[IP]:[PORT:8753]/</WebUI>
   <TemplateURL/>
-  <Icon/>
+  <Icon>https://raw.githubusercontent.com/thebeatmv1998/Landingpage/master/public/icons/homedeck.png</Icon>
   <PostArgs/>
   <CPUset/>
   <DateInstalled/>

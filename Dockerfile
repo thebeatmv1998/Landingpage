@@ -4,6 +4,12 @@
 # and can keep using an older cached base image on existing hosts.
 FROM node:24.22.1-alpine
 
+LABEL org.opencontainers.image.title="HomeDeck" \
+      org.opencontainers.image.description="Self-hosted homelab dashboard with live stats, media info and deep .arr integrations" \
+      org.opencontainers.image.source="https://github.com/thebeatmv1998/Landingpage" \
+      org.opencontainers.image.licenses="MIT" \
+      net.unraid.docker.icon="https://raw.githubusercontent.com/thebeatmv1998/Landingpage/master/public/icons/homedeck.png"
+
 WORKDIR /app
 
 # su-exec lets the entrypoint drop to UID/GID (linuxserver-style UID/GID/UMASK/TZ)

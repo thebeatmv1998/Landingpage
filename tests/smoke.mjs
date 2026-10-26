@@ -227,6 +227,10 @@ async function main() {
   ok(seerrIcon.status === 200 && (seerrIcon.headers.get('content-type') || '').includes('image/webp'), 'Seerr icon is served locally');
   const stirlingIcon = await fetch(BASE + '/icons/stirling-pdf.webp');
   ok(stirlingIcon.status === 200 && (stirlingIcon.headers.get('content-type') || '').includes('image/webp'), 'Stirling PDF icon is served locally');
+  const deckWebp = await fetch(BASE + '/icons/homedeck.webp');
+  ok(deckWebp.status === 200 && (deckWebp.headers.get('content-type') || '').includes('image/webp'), 'HomeDeck WebP icon is served locally');
+  const deckPng = await fetch(BASE + '/icons/homedeck.png');
+  ok(deckPng.status === 200 && (deckPng.headers.get('content-type') || '').includes('image/png'), 'HomeDeck PNG icon for Unraid is served locally');
   r = await call(`/api/services/${ids['Seerr']}/action`, { method: 'POST', body: { action: 'approve_request', value: 1 } });
   ok(r.status === 200 && r.json?.ok === true, 'Seerr admin approve request');
   r = await call('/api/summary');
@@ -360,12 +364,15 @@ async function main() {
   ok(byName['Unraid']?.online === true, `Unraid online (${byName['Unraid']?.error || ''})`);
   ok(byName['Unraid']?.stats?.some((x) => x.label === 'Array' && x.value === 'STARTED'), 'Unraid array state');
   ok(byName['Unraid']?.stats?.some((x) => x.label === 'Uptime' && /^1d /.test(String(x.value))), `Unraid uptime from boot ISO (${byName['Unraid']?.stats?.find((x) => x.label === 'Uptime')?.value})`);
-  ok(byName['Unraid']?.stats?.some((x) => x.label === 'Containers' && x.value === '3/4'), 'Unraid containers via docker.containers (UPPERCASE states)');
+  ok(byName['Unraid']?.stats?.some((x) => x.label === 'Containers' && x.value === '5/6'), 'Unraid containers via docker.containers (UPPERCASE states)');
   ok(byName['Unraid']?.stats?.some((x) => x.label === 'Parity' && x.value === '43%'), 'Unraid parity progress surfaced');
   ok(byName['Unraid']?.containers?.find((c) => c.name === 'sonarr')?.update === true, 'Unraid container update flag surfaced');
   ok(byName['Unraid']?.containers?.find((c) => c.name === 'sonarr')?.icon === '/icons/sonarr.webp', 'container icon falls back to bundled dashboardicons');
   ok(byName['Unraid']?.containers?.find((c) => c.name === 'jellyfin')?.icon === 'https://cdn.example.test/jellyfin.webp', 'container icon uses the Unraid iconUrl');
+  ok(byName['Unraid']?.containers?.find((c) => c.name === 'jellyfin')?.iconFallback === '/icons/jellyfin.webp', 'container icon exposes a bundled fallback for dead URLs');
   ok(byName['Unraid']?.containers?.find((c) => c.name === 'pihole')?.icon === 'http://127.0.0.1:9000/icons/pihole.webp', 'relative Unraid icon resolved against the server');
+  ok(byName['Unraid']?.containers?.find((c) => c.name === 'Stirling-PDF')?.icon === '/icons/stirling-pdf.webp', 'host-path icon falls back to the bundled Stirling PDF icon');
+  ok(byName['Unraid']?.containers?.find((c) => c.name === 'HomeDeck')?.icon === '/icons/homedeck.webp', 'HomeDeck container uses its own bundled icon');
   r = await call(`/api/services/${ids['Unraid']}/action`, { method: 'POST', body: { action: 'update', value: 'test-container' } });
   ok(r.status === 200 && r.json?.ok === true, 'Unraid container update action accepted');
   r = await call(`/api/services/${ids['Unraid']}/action`, { method: 'POST', body: { action: 'restart', value: 'c-sonarr' } });

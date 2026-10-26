@@ -101,11 +101,23 @@ export function serviceIcon(svc, cls = '') {
 
 export function wireIcons(root) {
   root.querySelectorAll('img.svc-img, img.ci-img').forEach((img) => {
-    img.addEventListener('error', () => {
+    const onError = () => {
+      // A dead/blocked remote icon URL retries with the bundled icon before
+      // we fall back to the inline glyph.
+      const fallback = img.dataset.fallback;
+      if (fallback) {
+        delete img.dataset.fallback;
+        img.src = fallback;
+        img.addEventListener('error', onError, { once: true });
+      // A cached failure may have fired before the listener was attached.
+      if (img.complete && img.naturalWidth === 0) onError();
+        return;
+      }
       const tile = img.closest('.ci-icon');
       img.remove();
       if (tile) tile.classList.remove('has-img');
-    }, { once: true });
+    };
+    img.addEventListener('error', onError, { once: true });
   });
 }
 
