@@ -2,7 +2,7 @@
 # Pin the patched Node.js LTS baseline (security releases from 2026-10-21,
 # incl. CVE-2026-111497). The floating node:24-alpine tag is not reproducible
 # and can keep using an older cached base image on existing hosts.
-FROM node:24.22.1-alpine
+FROM node:26.12.1-alpine
 
 LABEL org.opencontainers.image.title="HomeDeck" \
       org.opencontainers.image.description="Self-hosted homelab dashboard with live stats, media info and deep .arr integrations" \
