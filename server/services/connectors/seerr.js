@@ -2,6 +2,49 @@
 // installations. They share the same /api/v1 request API and X-Api-Key auth.
 const API = '/api/v1';
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w342';
+const DETAILS_TTL = 30 * 60 * 1000;
+const DETAILS_MAX = 500;
+const detailsCache = new Map(); // "movie:tmdbId" / "tv:tmdbId" -> { data, expiresAt }
+
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      out[index] = await fn(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
+async function mediaDetails(ctx, media, headers) {
+  const type = media?.mediaType;
+  const id = media?.tmdbId;
+  if (!['movie', 'tv'].includes(type) || !id) return {};
+  const key = `${type}:${id}`;
+  const cached = detailsCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  try {
+    const data = await api(ctx, `/${type}/${encodeURIComponent(String(id))}`, { headers, timeoutMs: 10000 }) || {};
+    const out = {
+      title: data.title || data.name || '',
+      posterPath: data.posterPath || '',
+      date: data.releaseDate || data.firstAirDate || '',
+    };
+    while (detailsCache.size >= DETAILS_MAX) {
+      const oldest = detailsCache.keys().next().value;
+      if (!oldest) break;
+      detailsCache.delete(oldest);
+    }
+    detailsCache.set(key, { data: out, expiresAt: Date.now() + DETAILS_TTL });
+    return out;
+  } catch {
+    return {};
+  }
+}
 
 function authHeaders(ctx) {
   return { Accept: 'application/json', 'X-Api-Key': ctx.apiKey || '' };
@@ -41,21 +84,22 @@ function filterForStatus(status) {
   return 'all';
 }
 
-function mapRequest(r) {
+function mapRequest(r, details = {}) {
   const media = r?.media || {};
   const requester = r?.requestedBy || {};
-  const rawPoster = String(media.posterPath || media.poster_path || '').trim();
+  const rawPoster = String(media.posterPath || media.poster_path || details.posterPath || '').trim();
   const poster = rawPoster
     ? (/^https?:\/\//i.test(rawPoster) ? rawPoster : TMDB_IMAGE + (rawPoster.startsWith('/') ? rawPoster : '/' + rawPoster))
     : '';
-  const year = String(media.releaseDate || media.firstAirDate || '').slice(0, 4);
+  const date = media.releaseDate || media.firstAirDate || details.date || '';
+  const year = String(date).slice(0, 4);
   const kind = media.mediaType === 'movie' ? 'Movie' : media.mediaType === 'tv' ? 'TV' : '';
   const status = normalizeStatus(r);
   return {
     id: r?.id ?? '',
     status,
     statusLabel: statusLabel(status),
-    title: media.title || media.name || media.originalTitle || media.originalName || (r?.id ? `Request #${r.id}` : 'Unknown request'),
+    title: media.title || media.name || details.title || media.originalTitle || media.originalName || 'Unknown title',
     subtitle: [kind, year].filter(Boolean).join(' · '),
     user: requester.displayName || requester.username || requester.email || 'Unknown user',
     poster,
@@ -108,7 +152,16 @@ export default {
       api(ctx, countQuery('available'), { headers }).catch(() => null),
     ]);
     const results = Array.isArray(recent?.results) ? recent.results : [];
-    const requests = results.map(mapRequest);
+    // Media lists often contain only tmdbId/mediaType, not titles or posters.
+    // Resolve details lazily (cached, limited concurrency) so the UI shows the
+    // actual movie/show name instead of "Request #123".
+    const requests = await mapLimit(results, 4, async (r) => {
+      const media = r?.media || {};
+      const needsDetails = (!media.title && !media.name) || !media.posterPath
+        || (!media.releaseDate && !media.firstAirDate);
+      const details = needsDetails ? await mediaDetails(ctx, media, headers) : {};
+      return mapRequest(r, details);
+    });
     const counts = {
       open: pageCount(pending),
       approved: pageCount(approved),

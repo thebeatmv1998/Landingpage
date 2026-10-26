@@ -205,7 +205,7 @@ Done — it appears in the admin gallery, the forms and the dashboard.
 ```bash
 npm run mock    # starts mock versions of every service API on :9000
 npm run unit    # unit tests for helpers (no network)
-npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 303 assertions)
+npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 304 assertions)
 npm test        # unit + smoke
 ```
 

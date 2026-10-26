@@ -581,13 +581,24 @@ app.post('/unraid/graphql', (req, res) => {
 // ------------------------------------------------------------------ Overseerr / Jellyseerr
 function overseerrRouter(version) {
   const router = express.Router();
+  // Deliberately omit title/poster here: Seerr's request list often only has
+  // mediaType + tmdbId. The connector must resolve details via /movie|/tv.
   const requests = [
-    { id: 1, status: 1, media: { mediaType: 'movie', title: 'Dune: Part Two', posterPath: '/dune.jpg', status: 2, releaseDate: '2024-03-01' }, requestedBy: { displayName: 'Alice', username: 'alice' } },
-    { id: 2, status: 2, media: { mediaType: 'tv', title: 'Severance', posterPath: '/severance.jpg', status: 5, firstAirDate: '2022-02-18' }, requestedBy: { displayName: 'Bob', username: 'bob' } },
-    { id: 3, status: 2, media: { mediaType: 'tv', title: 'The Bear', posterPath: '/bear.jpg', status: 3, firstAirDate: '2022-06-23' }, requestedBy: { displayName: 'Cara', username: 'cara' } },
-    { id: 4, status: 3, media: { mediaType: 'movie', title: 'Argylle', posterPath: '/argylle.jpg', status: 2, releaseDate: '2024-02-02' }, requestedBy: { displayName: 'Dan', username: 'dan' } },
-    { id: 5, status: 1, media: { mediaType: 'movie', title: 'Furiosa', posterPath: '/furiosa.jpg', status: 2, releaseDate: '2024-05-24' }, requestedBy: { displayName: 'Eve', username: 'eve' } },
+    { id: 1, status: 1, media: { mediaType: 'movie', tmdbId: 101, status: 2 }, requestedBy: { displayName: 'Alice', username: 'alice' } },
+    { id: 2, status: 2, media: { mediaType: 'tv', tmdbId: 202, status: 5 }, requestedBy: { displayName: 'Bob', username: 'bob' } },
+    { id: 3, status: 2, media: { mediaType: 'tv', tmdbId: 203, status: 3 }, requestedBy: { displayName: 'Cara', username: 'cara' } },
+    { id: 4, status: 3, media: { mediaType: 'movie', tmdbId: 104, status: 2 }, requestedBy: { displayName: 'Dan', username: 'dan' } },
+    { id: 5, status: 1, media: { mediaType: 'movie', tmdbId: 105, status: 2 }, requestedBy: { displayName: 'Eve', username: 'eve' } },
   ];
+  const movieDetails = {
+    101: { title: 'Dune: Part Two', posterPath: '/dune.jpg', releaseDate: '2024-03-01' },
+    104: { title: 'Argylle', posterPath: '/argylle.jpg', releaseDate: '2024-02-02' },
+    105: { title: 'Furiosa', posterPath: '/furiosa.jpg', releaseDate: '2024-05-24' },
+  };
+  const tvDetails = {
+    202: { name: 'Severance', posterPath: '/severance.jpg', firstAirDate: '2022-02-18' },
+    203: { name: 'The Bear', posterPath: '/bear.jpg', firstAirDate: '2022-06-23' },
+  };
   const auth = (req, res) => {
     const key = req.get('X-Api-Key') || '';
     if (!key.startsWith('testkey-')) { res.status(401).json({ error: 'invalid api key' }); return false; }
@@ -602,6 +613,18 @@ function overseerrRouter(version) {
     return requests;
   };
   router.get('/api/v1/status', (req, res) => res.json({ version, commitTag: 'mock', updateAvailable: false }));
+  router.get('/api/v1/movie/:id', (req, res) => {
+    if (!auth(req, res)) return;
+    const item = movieDetails[Number(req.params.id)];
+    if (!item) return res.status(404).json({ error: 'movie not found' });
+    res.json(item);
+  });
+  router.get('/api/v1/tv/:id', (req, res) => {
+    if (!auth(req, res)) return;
+    const item = tvDetails[Number(req.params.id)];
+    if (!item) return res.status(404).json({ error: 'tv not found' });
+    res.json(item);
+  });
   router.get('/api/v1/request', (req, res) => {
     if (!auth(req, res)) return;
     const filter = String(req.query.filter || 'all');

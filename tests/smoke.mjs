@@ -231,10 +231,13 @@ async function main() {
   const seerrSnap = (r.json?.services || []).find((s) => s.type === 'seerr');
   ok(seerrSnap?.requestCounts?.open === 1 && seerrSnap?.requestCounts?.approved === 3 && seerrSnap?.requestCounts?.available === 1,
     'Seerr request counts by status');
-  ok(seerrSnap?.requests?.some((x) => x.user === 'Alice' && String(x.poster).startsWith('https://image.tmdb.org/t/p/w342/')),
-    'Seerr latest request includes poster and requester');
+  ok(seerrSnap?.requests?.some((x) => x.title === 'Dune: Part Two' && x.user === 'Alice'
+    && String(x.poster).startsWith('https://image.tmdb.org/t/p/w342/')),
+    'Seerr resolves movie title, poster and requester');
   ok(seerrSnap?.requests?.some((x) => x.title === 'Severance' && x.status === 'available'),
-    'Seerr media availability is normalized');
+    'Seerr resolves TV title and media availability');
+  ok(!seerrSnap?.requests?.some((x) => /^Request #/.test(String(x.title))),
+    'Seerr never displays the request number as the title');
 
   // Komga supports API keys (X-API-Key) as an alternative to Basic auth.
   r = await call('/api/services', { method: 'POST', body: { type: 'komga', name: 'Komga API Key', url: 'http://127.0.0.1:9000/komga', api_key: 'testkey-komga' } });
