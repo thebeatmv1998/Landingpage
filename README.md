@@ -112,9 +112,11 @@ local/public URL failover, keeps an offline cache and offers themes, accent colo
 compact cards, grouping and a refresh interval. See `android/README.md` for build
 instructions (JDK 17 + Android SDK 35).
 
-A prebuilt **release-signed APK** (`homedeck.apk`, v1.1.4, Android 8.0+) is attached to
-the latest **GitHub Release** and also included in `homedeck-usenet.tar.gz` at
-`public/download/homedeck.apk`. Building the Docker image from that tarball enables the
+A prebuilt **release-signed APK** (`homedeck.apk`, Android 8.0+, version matches the
+server/release tag) is attached to the latest **GitHub Release** and also included in
+`homedeck-usenet.tar.gz` at `public/download/homedeck.apk`. Both `package.json` and the
+Android build derive the version from one place, so Obtainium sees a matching
+`versionName`. Building the Docker image from that tarball enables the
 download button in **My settings → Mobile app**. The app includes charts/detail screens
 and supports separate local and external HomeDeck server addresses with automatic
 failover.
@@ -205,7 +207,7 @@ Done — it appears in the admin gallery, the forms and the dashboard.
 ```bash
 npm run mock    # starts mock versions of every service API on :9000
 npm run unit    # unit tests for helpers (no network)
-npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 310 assertions)
+npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 312 assertions)
 npm test        # unit + smoke
 ```
 

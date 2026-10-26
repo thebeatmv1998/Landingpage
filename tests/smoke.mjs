@@ -100,6 +100,9 @@ async function main() {
   console.log('\n— auth & setup');
   let r = await call('/api/meta');
   ok(r.json?.needsSetup === true, 'meta reports needsSetup');
+  const pkgVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  ok(r.json?.version === pkgVersion, `meta version matches package.json (${pkgVersion})`);
+  ok(r.json?.androidApk?.version === pkgVersion, 'advertised APK version matches the app version');
   r = await call('/api/setup', { method: 'POST', body: { username: 'boss', password: 'supersecret1', displayName: 'Boss' } });
   ok(r.status === 200 && r.json?.user?.role === 'admin', 'setup creates admin');
   r = await call('/api/setup', { method: 'POST', body: { username: 'x', password: 'supersecret1' } });

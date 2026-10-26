@@ -10,6 +10,21 @@ if [ ! -f "$APK" ]; then
   exit 1
 fi
 
+# Keep the bundled APK and the release tag in sync (Obtainium compares the
+# installed versionName with the latest release). The Gradle metadata is
+# written by assembleRelease.
+PKG_VERSION=$(node -p "require('./package.json').version")
+APK_META=android/app/build/outputs/apk/release/output-metadata.json
+if [ -f "$APK_META" ]; then
+  APK_VERSION=$(node -p "require('./$APK_META').elements[0].versionName")
+  if [ "$APK_VERSION" != "$PKG_VERSION" ]; then
+    echo "APK versionName $APK_VERSION does not match package.json $PKG_VERSION" >&2
+    exit 1
+  fi
+else
+  echo "Warning: $APK_META not found, skipping APK version check" >&2
+fi
+
 OUT=${1:-homedeck-usenet.tar.gz}
 tar -czf "$OUT" \
   --exclude=android/app/build \

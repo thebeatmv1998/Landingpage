@@ -11,6 +11,18 @@ function intEnv(name, def) {
   return Number.isFinite(v) ? v : def;
 }
 
+// Single source of truth for the app / server / Android version and the
+// GitHub release tag. Obtainium compares the APK versionName with the release,
+// so a hardcoded copy here would silently break updates.
+function packageVersion() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+    return String(pkg.version || '0.0.0');
+  } catch {
+    return '0.0.0';
+  }
+}
+
 export const config = {
   port: intEnv('PORT', 8080),
   host: process.env.HOST || '0.0.0.0',
@@ -24,7 +36,7 @@ export const config = {
   trustProxy: process.env.TRUST_PROXY === '1',
   trustProxyHops: Math.max(1, intEnv('TRUST_PROXY_HOPS', 1)),
   publicUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, ''),
-  version: '1.0.0',
+  version: process.env.HOMEDECK_VERSION || packageVersion(),
 };
 
 // Database/WAL, uploads and the install secret should not be world-readable.

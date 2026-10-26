@@ -1,6 +1,7 @@
 // Unit tests for pure helpers (no server, no network).
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import {
   clampPollMs, fmtBytes, fmtBytesSI, joinUrl, pct, deepMerge, safeJsonParse, timingSafeEqualStr,
 } from '../server/core/util.js';
@@ -72,5 +73,15 @@ ok(bundledIconFor('pdf', 'stirlingtools/stirling-pdf:latest') === '/icons/stirli
 ok(bundledIconFor('HomeDeck', '') === '/icons/homedeck.webp', 'HomeDeck container uses the app icon');
 ok(bundledIconFor('landingpage', '') === '/icons/homedeck.webp', 'Landingpage container uses the HomeDeck icon');
 ok(bundledIconFor('homedeck-usenet', 'homedeck-usenet:latest') === '/icons/homedeck.webp', 'HomeDeck image variant uses the app icon');
+
+console.log('— version sync');
+const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+ok(/^\d+\.\d+\.\d+$/.test(pkg.version), 'package.json version is semver');
+const gradle = fs.readFileSync(new URL('../android/app/build.gradle.kts', import.meta.url), 'utf8');
+ok(/versionName\s*=\s*appVersion/.test(gradle), 'Android versionName comes from package.json');
+ok(!/versionName\s*=\s*"/.test(gradle), 'Android versionName is not hardcoded');
+ok(/versionCode\s*=\s*computedVersionCode/.test(gradle), 'Android versionCode is derived from the version');
+const releaseSh = fs.readFileSync(new URL('../release.sh', import.meta.url), 'utf8');
+ok(/APK versionName .* package\.json/.test(releaseSh), 'release.sh refuses a mismatched APK version');
 
 console.log(`\n==== UNIT RESULTS: ${passed} passed, 0 failed ====`);
