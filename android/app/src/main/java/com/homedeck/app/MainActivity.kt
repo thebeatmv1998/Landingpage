@@ -14,6 +14,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
@@ -21,7 +22,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -48,6 +51,28 @@ class MainActivity : AppCompatActivity() {
     private var offlineMode = false
     private var built = false
     private var pairingLaunched = false
+    private var activeBase = ""
+    private var chartsAnimated = false
+
+    private data class LiveCardRow(
+        val bar: ProgressBar,
+        val time: TextView,
+        val positionMs: Long,
+        val durationMs: Long,
+        val positionAt: Long,
+        val paused: Boolean,
+        val rate: Double,
+    )
+
+    private val liveCards = mutableListOf<LiveCardRow>()
+
+    private val cardTicker = object : Runnable {
+        override fun run() {
+            val now = System.currentTimeMillis()
+            for (row in liveCards) paintLiveCard(row, now)
+            handler.postDelayed(this, 1000)
+        }
+    }
 
     private val autoRefresh = object : Runnable {
         override fun run() {
@@ -91,12 +116,15 @@ class MainActivity : AppCompatActivity() {
         }
         handler.removeCallbacks(autoRefresh)
         handler.postDelayed(autoRefresh, prefs.refreshSeconds * 1000L)
+        handler.removeCallbacks(cardTicker)
+        handler.post(cardTicker)
         load(true)
     }
 
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(autoRefresh)
+        handler.removeCallbacks(cardTicker)
     }
 
     override fun onDestroy() {
@@ -212,6 +240,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val fetched = SummaryRepository.fetch(prefs, token)
                 val summary = fetched.summary
+                activeBase = fetched.base
                 appendDownloadHistory(summary)
                 prefs.cachedSummary = fetched.raw
                 prefs.cachedAt = System.currentTimeMillis()
@@ -300,6 +329,7 @@ class MainActivity : AppCompatActivity() {
         var shown = all
         if (!prefs.showOffline) shown = shown.filter { it.online }
         val previousScroll = scroll.scrollY
+        liveCards.clear()
         servicesBox.removeAllViews()
         if (all.isEmpty()) {
             servicesBox.addView(emptyCard("No services yet", "Add services in the HomeDeck web UI."))
@@ -309,9 +339,12 @@ class MainActivity : AppCompatActivity() {
             servicesBox.addView(emptyCard("Everything is offline", "HomeDeck cannot reach any service right now."))
             return
         }
-        insightsRow(all)?.let { insights ->
-            servicesBox.addView(Ui.label(this, "Insights", palette.faint), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 2, 2, 2, 6))
-            servicesBox.addView(insights, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 0, 4))
+        val insights = buildInsights(all)
+        if (insights.isNotEmpty()) {
+            servicesBox.addView(Ui.label(this, "Insights", palette.faint), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 2, 2, 2, 8))
+            for (view in insights) {
+                servicesBox.addView(view, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 0, 8))
+            }
         }
         if (prefs.groupByCategory) {
             val groups = LinkedHashMap<String, MutableList<Service>>()
@@ -331,6 +364,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         scroll.post { scroll.scrollTo(0, previousScroll) }
+        chartsAnimated = true
     }
 
     private fun appendDownloadHistory(summary: Summary) {
@@ -340,116 +374,134 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun insightsRow(all: List<Service>): View? {
+    private fun buildInsights(all: List<Service>): List<View> {
+        val blocks = mutableListOf<View>()
+        piholeCard(all)?.let { blocks.add(it) }
+        widgetRow(all)?.let { blocks.add(it) }
+        healthCard(all)?.let { blocks.add(it) }
+        return blocks
+    }
+
+    /** Full-width Pi-hole card with a scrubbable 24h graph. */
+    private fun piholeCard(all: List<Service>): View? {
+        val service = all.firstOrNull { it.type == "pihole" && it.charts.pihole.size >= 2 } ?: return null
+        fun stat(label: String): String = prettyStat(
+            service.stats.firstOrNull { it.label.equals(label, true) }?.value ?: "",
+        )
+        val queries = stat("Queries today").ifEmpty { formatCount(service.charts.pihole.sumOf { it.queries }) }
+        val blocked = stat("Blocked").ifEmpty { formatCount(service.charts.pihole.sumOf { it.blocked }) }
+        val rateText = stat("Blocked %").ifEmpty {
+            val q = service.charts.pihole.sumOf { it.queries }
+            val b = service.charts.pihole.sumOf { it.blocked }
+            if (q > 0) String.format(Locale.US, "%.1f%%", b * 100.0 / q) else "0%"
+        }
+        val rate = (rateText.removeSuffix("%").toFloatOrNull() ?: 0f).coerceIn(0f, 100f)
+        val clients = stat("Clients")
+        val domains = stat("Blocklist")
+
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Ui.ripple(
+                this@MainActivity, palette.card, 18, palette.line, palette.text,
+                if (palette.isDark) 26 else 16,
+            )
+            setPadding(Ui.dp(this@MainActivity, 14), Ui.dp(this@MainActivity, 13), Ui.dp(this@MainActivity, 14), Ui.dp(this@MainActivity, 13))
+            isClickable = true
+            isFocusable = true
+        }
+        card.setOnClickListener { openDetail(service) }
+
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        head.addView(Ui.label(this, "Pi-hole", palette.faint), Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        head.addView(dot(if (service.online) palette.ok else palette.bad), Ui.lp(Ui.dp(this, 7), Ui.dp(this, 7)))
+        head.addView(
+            Ui.text(this, "LIVE · 24H", 9f, palette.faint, true),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 5, 0, 0, 0),
+        )
+        card.addView(head)
+
+        val summary = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val numbers = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        numbers.addView(Ui.text(this, queries, 26f, palette.text, true))
+        numbers.addView(
+            Ui.text(this, "$blocked blocked · $rateText", 11f, palette.muted),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0),
+        )
+        val extra = listOf(
+            if (clients.isNotEmpty()) "$clients clients" else "",
+            if (domains.isNotEmpty()) "$domains domains" else "",
+        ).filter { it.isNotEmpty() }.joinToString(" · ")
+        if (extra.isNotEmpty()) {
+            numbers.addView(
+                Ui.text(this, extra, 10f, palette.faint),
+                Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0),
+            )
+        }
+        summary.addView(numbers, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val donut = DonutView(this).apply {
+            segments = listOf(
+                DonutView.Segment(rate.coerceAtLeast(0.1f), palette.bad),
+                DonutView.Segment((100f - rate).coerceAtLeast(0.1f), palette.line),
+            )
+            label = rateText
+            sub = "blocked"
+            trackColor = palette.card2
+            textColor = palette.text
+            mutedColor = palette.muted
+        }
+        summary.addView(donut, Ui.lp(Ui.dp(this, 66), Ui.dp(this, 66)))
+        card.addView(summary, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 6, 0, 0))
+
+        val chart = AreaChartView(this).apply {
+            animate = !chartsAnimated
+            points = service.charts.pihole
+            accent = palette.accent
+            blockedColor = palette.bad
+            gridColor = palette.line
+            textColor = palette.faint
+            bubbleColor = palette.card2
+            bubbleTextColor = palette.text
+        }
+        card.addView(chart, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 116)), 0, 8, 0, 0))
+
+        val legend = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        legend.addView(Ui.toggleChip(this, palette, "Queries", palette.accent, true) { on -> chart.showQueries = on })
+        legend.addView(
+            Ui.toggleChip(this, palette, "Blocked", palette.bad, true) { on -> chart.showBlocked = on },
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
+        )
+        legend.addView(
+            Ui.text(this, "drag to inspect", 9.5f, palette.faint).apply { gravity = Gravity.END },
+            Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+        )
+        card.addView(legend, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 7, 0, 0))
+        return card
+    }
+
+    /** Horizontal strip of secondary insight cards. */
+    private fun widgetRow(all: List<Service>): View? {
         val cards = mutableListOf<View>()
-
-        all.firstOrNull { it.type == "pihole" && it.charts.pihole.size >= 2 }?.let { service ->
-            val queries = service.stats.firstOrNull { it.label.contains("Queries", true) }?.value
-                ?: formatCount(service.charts.pihole.sumOf { it.queries })
-            val card = insightCard("Pi-hole · 24h", queries, "queries") { openDetail(service) }
-            val chart = AreaChartView(this).apply {
-                points = service.charts.pihole
-                accent = palette.accent
-                blockedColor = palette.bad
-                gridColor = palette.line
-                textColor = palette.faint
-            }
-            card.addView(chart, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 72)), 0, 8, 0, 0))
-            val legend = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            legend.addView(dot(palette.accent), Ui.lp(Ui.dp(this, 7), Ui.dp(this, 7)))
-            legend.addView(Ui.text(this, "Queries", 10f, palette.muted), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 4, 0, 10, 0))
-            legend.addView(dot(palette.bad), Ui.lp(Ui.dp(this, 7), Ui.dp(this, 7)))
-            legend.addView(Ui.text(this, "Blocked", 10f, palette.muted), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 4, 0, 0, 0))
-            card.addView(legend, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 5, 0, 0))
-            cards.add(card)
-        }
-
-        all.firstOrNull { it.type == "sabnzbd" && it.charts.downloads != null }?.let { service ->
-            val downloads = service.charts.downloads ?: return@let
-            val card = insightCard(
-                "Downloads",
-                formatSpeed(downloads.speedBps),
-                if (downloads.paused) "paused" else "${downloads.overall}% complete",
-            ) { openDetail(service) }
-            val spark = SparklineView(this).apply {
-                values = (HistoryStore.downloads[service.id] ?: emptyList()).toList()
-                accent = palette.accent
-                gridColor = palette.line
-            }
-            card.addView(spark, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 62)), 0, 8, 0, 0))
-            cards.add(card)
-        }
-
-        all.firstOrNull { service -> service.charts.disks.any { it.totalGB > 0 } }?.let { service ->
-            val disk = service.charts.disks.first { it.totalGB > 0 }
-            val card = cardShell("Storage") { openDetail(service) }
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            val donut = DonutView(this).apply {
-                segments = listOf(
-                    DonutView.Segment(disk.usedGB.toFloat(), palette.accent),
-                    DonutView.Segment(disk.freeGB.toFloat(), palette.line),
-                )
-                label = "${disk.percent}%"
-                sub = "used"
-                trackColor = palette.card2
-                textColor = palette.text
-                mutedColor = palette.muted
-            }
-            row.addView(donut, Ui.lp(Ui.dp(this, 82), Ui.dp(this, 82)))
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-            col.addView(Ui.text(this, service.name, 14f, palette.text, true))
-            col.addView(Ui.text(this, "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)}", 10.5f, palette.muted), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 3, 0, 0))
-            col.addView(Ui.text(this, "${formatGB(disk.freeGB)} free", 10f, palette.faint), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0))
-            row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 8, 0, 0, 0))
-            card.addView(row, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0))
-            cards.add(card)
-        }
-
-        all.firstOrNull { it.charts.docker != null }?.let { service ->
-            val docker = service.charts.docker ?: return@let
-            val total = docker.running + docker.stopped
-            val card = cardShell("Docker") { openDetail(service) }
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            val donut = DonutView(this).apply {
-                segments = listOf(
-                    DonutView.Segment(docker.running.toFloat(), palette.ok),
-                    DonutView.Segment(docker.unhealthy.toFloat(), palette.warn),
-                    DonutView.Segment((docker.stopped - docker.unhealthy).coerceAtLeast(0).toFloat(), palette.faint),
-                )
-                label = docker.running.toString()
-                sub = "running"
-                trackColor = palette.card2
-                textColor = palette.text
-                mutedColor = palette.muted
-            }
-            row.addView(donut, Ui.lp(Ui.dp(this, 82), Ui.dp(this, 82)))
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-            col.addView(Ui.text(this, "$total containers", 14f, palette.text, true))
-            col.addView(Ui.text(this, "${docker.stopped} stopped", 10.5f, palette.muted), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 3, 0, 0))
-            if (docker.unhealthy > 0) {
-                col.addView(Ui.text(this, "${docker.unhealthy} unhealthy", 10f, palette.warn), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0))
-            }
-            row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 8, 0, 0, 0))
-            card.addView(row, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0))
-            cards.add(card)
-        }
-
+        all.filter { it.nowPlaying.isNotEmpty() }.take(2).forEach { cards.add(nowPlayingCard(it)) }
+        all.firstOrNull { it.type == "sabnzbd" && it.charts.downloads != null }?.let { cards.add(downloadsCard(it)) }
+        upcomingCard(all)?.let { cards.add(it) }
+        all.firstOrNull { service -> service.charts.disks.any { it.totalGB > 0 } }?.let { storageCard(it)?.let(cards::add) }
+        all.firstOrNull { it.charts.docker != null }?.let { dockerCard(it)?.let(cards::add) }
         if (cards.isEmpty()) return null
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.TOP
         }
         for (card in cards) {
-            row.addView(card, Ui.margins(this, Ui.lp(Ui.dp(this, 258), LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 10, 0))
+            row.addView(card, Ui.margins(this, Ui.lp(Ui.dp(this, 264), LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 10, 0))
         }
         return HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
@@ -458,10 +510,328 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun cardShell(title: String, onClick: () -> Unit): LinearLayout {
+    private fun nowPlayingCard(service: Service): View {
+        val item = service.nowPlaying.first()
+        val card = cardShell("Now playing · ${service.name}", { openDetail(service) })
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.TOP
+        }
+        val art = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            background = Ui.rounded(this@MainActivity, palette.card2, 8)
+            clipToOutline = true
+        }
+        row.addView(art, Ui.lp(Ui.dp(this, 56), Ui.dp(this, 56)))
+        val artUrl = ImageLoader.artUrl(activeBase, service, item.art)
+        if (artUrl.isNotEmpty()) ImageLoader.load(art, artUrl, secure.token() ?: "", activeBase)
+
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        col.addView(
+            Ui.text(this, item.title, 13f, palette.text, true).apply {
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            },
+        )
+        val sub = listOf(item.user, item.device, if (item.paused) "paused" else "")
+            .filter { it.isNotBlank() }
+            .joinToString(" · ")
+        if (sub.isNotEmpty()) {
+            col.addView(
+                Ui.text(this, sub, 10f, if (item.paused) palette.warn else palette.muted).apply {
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                },
+                Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0),
+            )
+        }
+        val bar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            progress = item.progress.coerceIn(0, 100)
+            progressTintList = ColorStateList.valueOf(if (item.paused) palette.warn else palette.accent)
+            progressBackgroundTintList = ColorStateList.valueOf(palette.line)
+        }
+        col.addView(bar, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 4)), 0, 7, 0, 0))
+        val timeView = Ui.text(this, "", 9.5f, palette.faint)
+        col.addView(timeView, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 3, 0, 0))
+        row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 9, 0, 0, 0))
+        card.addView(row, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 9, 0, 0))
+
+        val positionMs = if (item.positionMs > 0) item.positionMs else item.position * 1000L
+        val durationMs = item.duration * 1000L
+        val positionAt = if (item.positionAt > 0) item.positionAt else (service.fetchedAt.takeIf { it > 0 } ?: System.currentTimeMillis())
+        val live = LiveCardRow(bar, timeView, positionMs, durationMs, positionAt, item.paused, item.playbackRate)
+        liveCards.add(live)
+        paintLiveCard(live, System.currentTimeMillis())
+        return card
+    }
+
+    private fun paintLiveCard(row: LiveCardRow, now: Long) {
+        val elapsed = if (row.paused) {
+            row.positionMs
+        } else {
+            row.positionMs + ((now - row.positionAt).coerceAtLeast(0) * row.rate).toLong()
+        }
+        val shown = if (row.durationMs > 0) elapsed.coerceAtMost(row.durationMs) else elapsed
+        row.time.text = if (row.durationMs > 0) {
+            "${formatDuration((shown / 1000).toInt())} / ${formatDuration((row.durationMs / 1000).toInt())}"
+        } else {
+            formatDuration((shown / 1000).toInt())
+        }
+        if (row.durationMs > 0) {
+            row.bar.progress = ((shown.toDouble() / row.durationMs) * 100).toInt().coerceIn(0, 100)
+        }
+    }
+
+    private fun downloadsCard(service: Service): View {
+        val downloads = service.charts.downloads ?: return cardShell(service.name) {}
+        val card = cardShell("Downloads", { openDetail(service) })
+        card.addView(
+            Ui.text(this, formatSpeed(downloads.speedBps), 20f, palette.text, true),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 4, 0, 0),
+        )
+        card.addView(
+            Ui.text(
+                this,
+                if (downloads.paused) "paused" else "${downloads.overall}% complete",
+                10.5f,
+                if (downloads.paused) palette.warn else palette.muted,
+            ),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 1, 0, 0),
+        )
+        val spark = SparklineView(this).apply {
+            values = (HistoryStore.downloads[service.id] ?: emptyList()).toList()
+            accent = palette.accent
+            gridColor = palette.line
+        }
+        card.addView(spark, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 46)), 0, 7, 0, 0))
+        val queueBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            progress = downloads.overall.coerceIn(0, 100)
+            progressTintList = ColorStateList.valueOf(palette.accent)
+            progressBackgroundTintList = ColorStateList.valueOf(palette.line)
+        }
+        card.addView(queueBar, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 4)), 0, 6, 0, 0))
+        for (item in service.activity.take(2)) {
+            val line = listOf(item.title, item.meta.ifEmpty { "${item.progress}%" }).joinToString(" · ")
+            card.addView(
+                Ui.text(this, line, 9.5f, palette.muted).apply {
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                },
+                Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 4, 0, 0),
+            )
+        }
+        return card
+    }
+
+    private fun upcomingCard(all: List<Service>): View? {
+        val events = all.flatMap { service -> service.calendar.map { service to it } }
+            .sortedBy { it.second.date }
+            .take(3)
+        if (events.isEmpty()) return null
+        val card = cardShell("Upcoming", { openDetail(events.first().first) })
+        for ((service, event) in events) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, Ui.dp(this@MainActivity, 5), 0, Ui.dp(this@MainActivity, 5))
+                isClickable = true
+                isFocusable = true
+            }
+            row.setOnClickListener { openDetail(service) }
+            val (day, month) = eventBadge(event.date)
+            val badge = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                background = Ui.rounded(this@MainActivity, palette.card2, 8, palette.line)
+            }
+            badge.addView(Ui.text(this, day, 14f, palette.text, true))
+            if (month.isNotEmpty()) badge.addView(Ui.text(this, month, 7.5f, palette.faint, true))
+            row.addView(badge, Ui.lp(Ui.dp(this, 36), Ui.dp(this, 38)))
+            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            col.addView(
+                Ui.text(this, event.title, 11.5f, palette.text, true).apply {
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                },
+            )
+            val sub = listOf(event.subtitle, service.name).filter { it.isNotBlank() }.joinToString(" · ")
+            if (sub.isNotEmpty()) {
+                col.addView(
+                    Ui.text(this, sub, 9.5f, palette.muted).apply {
+                        maxLines = 1
+                        ellipsize = TextUtils.TruncateAt.END
+                    },
+                )
+            }
+            row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 8, 0, 0, 0))
+            card.addView(row, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 4, 0, 0))
+        }
+        return card
+    }
+
+    private fun storageCard(service: Service): View? {
+        val disk = service.charts.disks.firstOrNull { it.totalGB > 0 } ?: return null
+        val card = cardShell("Storage", { openDetail(service) })
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val donut = DonutView(this).apply {
+            segments = listOf(
+                DonutView.Segment(disk.usedGB.toFloat(), palette.accent),
+                DonutView.Segment(disk.freeGB.toFloat(), palette.line),
+            )
+            label = "${disk.percent}%"
+            sub = "used"
+            trackColor = palette.card2
+            textColor = palette.text
+            mutedColor = palette.muted
+        }
+        row.addView(donut, Ui.lp(Ui.dp(this, 78), Ui.dp(this, 78)))
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        col.addView(Ui.text(this, service.name, 14f, palette.text, true))
+        col.addView(
+            Ui.text(this, "${formatGB(disk.usedGB)} / ${formatGB(disk.totalGB)}", 10.5f, palette.muted),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 3, 0, 0),
+        )
+        col.addView(
+            Ui.text(this, "${formatGB(disk.freeGB)} free", 10f, palette.faint),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0),
+        )
+        row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 8, 0, 0, 0))
+        card.addView(row, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0))
+        return card
+    }
+
+    private fun dockerCard(service: Service): View? {
+        val docker = service.charts.docker ?: return null
+        val total = docker.running + docker.stopped
+        val card = cardShell("Docker", { openDetail(service) })
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val donut = DonutView(this).apply {
+            segments = listOf(
+                DonutView.Segment(docker.running.toFloat(), palette.ok),
+                DonutView.Segment(docker.unhealthy.toFloat(), palette.warn),
+                DonutView.Segment((docker.stopped - docker.unhealthy).coerceAtLeast(0).toFloat(), palette.faint),
+            )
+            label = docker.running.toString()
+            sub = "running"
+            trackColor = palette.card2
+            textColor = palette.text
+            mutedColor = palette.muted
+        }
+        row.addView(donut, Ui.lp(Ui.dp(this, 78), Ui.dp(this, 78)))
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        col.addView(Ui.text(this, "$total containers", 14f, palette.text, true))
+        col.addView(
+            Ui.text(this, "${docker.stopped} stopped", 10.5f, palette.muted),
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 3, 0, 0),
+        )
+        if (docker.unhealthy > 0) {
+            col.addView(
+                Ui.text(this, "${docker.unhealthy} unhealthy", 10f, palette.warn),
+                Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0),
+            )
+        }
+        row.addView(col, Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 8, 0, 0, 0))
+        card.addView(row, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0))
+        return card
+    }
+
+    /** Compact, tappable status strip for every service. */
+    private fun healthCard(all: List<Service>): View? {
+        if (all.isEmpty()) return null
+        val online = all.count { it.online }
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = Ui.rounded(this@MainActivity, palette.card, 14, palette.line)
+            setPadding(Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, 10), Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, 10))
+        }
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        head.addView(Ui.label(this, "Service health", palette.faint), Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        head.addView(
+            Ui.text(
+                this,
+                "$online/${all.size} online",
+                10f,
+                if (online == all.size) palette.ok else palette.warn,
+                true,
+            ),
+        )
+        card.addView(head)
+
+        val strip = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        for (service in all) {
+            val color = when {
+                !service.online -> palette.bad
+                service.stale -> palette.warn
+                else -> palette.ok
+            }
+            val pill = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(Ui.dp(this@MainActivity, 9), Ui.dp(this@MainActivity, 5), Ui.dp(this@MainActivity, 10), Ui.dp(this@MainActivity, 5))
+                background = Ui.ripple(
+                    this@MainActivity, palette.card2, 20, palette.line, palette.text,
+                    if (palette.isDark) 24 else 14,
+                )
+                isClickable = true
+                isFocusable = true
+                alpha = if (service.online) 1f else 0.66f
+            }
+            pill.addView(View(this).apply { background = Ui.circle(this@MainActivity, color, 3) }, Ui.lp(Ui.dp(this, 6), Ui.dp(this, 6)))
+            pill.addView(
+                Ui.text(this, service.name, 10.5f, if (service.online) palette.text else palette.muted, true),
+                Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 5, 0, 0, 0),
+            )
+            pill.setOnClickListener { openDetail(service) }
+            strip.addView(pill, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 6, 0))
+        }
+        card.addView(
+            HorizontalScrollView(this).apply {
+                isHorizontalScrollBarEnabled = false
+                clipToPadding = false
+                addView(strip)
+            },
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0),
+        )
+        return card
+    }
+
+    private fun prettyStat(raw: String): String {
+        val value = raw.trim()
+        if (value.isEmpty()) return value
+        return if (value.all { it.isDigit() }) formatCount(value.toLong()) else value
+    }
+
+    private fun eventBadge(raw: String): Pair<String, String> {
+        val date = try {
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(raw.take(10))
+        } catch (_: Exception) {
+            null
+        } ?: return "?" to ""
+        return SimpleDateFormat("dd", Locale.getDefault()).format(date) to
+            SimpleDateFormat("MMM", Locale.getDefault()).format(date).uppercase(Locale.getDefault())
+    }
+
+    private fun cardShell(title: String, onClick: () -> Unit): LinearLayout {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Ui.ripple(
+                this@MainActivity, palette.card, 14, palette.line, palette.text,
+                if (palette.isDark) 26 else 16,
+            )
             setPadding(Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, 12))
             isClickable = true
             isFocusable = true
@@ -531,7 +901,10 @@ class MainActivity : AppCompatActivity() {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = Ui.rounded(this@MainActivity, palette.card, 14, palette.line)
+            background = Ui.ripple(
+                this@MainActivity, palette.card, 14, palette.line, palette.text,
+                if (palette.isDark) 22 else 14,
+            )
             setPadding(Ui.dp(this@MainActivity, 10), Ui.dp(this@MainActivity, verticalPadding), Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, verticalPadding))
             isClickable = true
             isFocusable = true

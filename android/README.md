@@ -9,11 +9,13 @@ the web dashboard.
 - **QR pairing** — scan the one-time code from *My settings → Mobile app* in the web UI.
 - **Live dashboard** — services grouped by category, online/offline state, stats,
   weather in the header, auto-refresh (15/30/60 s) and manual refresh.
-- **Insights row** — Pi-hole 24 h chart, download-speed sparkline, storage and Docker
-  donuts, tappable to open the full service view.
-- **Service detail screen** — charts, queue progress, recent history, now-playing with
-  artwork and a live playback clock (Jellyfin, Audiobookshelf, Navidrome/Feishin),
-  containers, Unraid disks, calendar and technical info.
+- **Interactive insights** — full-width Pi-hole 24 h chart with a drag-to-inspect
+  crosshair (time, queries, blocked, block rate), series toggles and an animated
+  reveal; now-playing mini player with live progress; upcoming media, download
+  queue, storage and Docker donuts; plus a tappable service-health strip.
+- **Service detail screen** — interactive charts, queue progress, recent history,
+  now-playing with artwork and a live playback clock (Jellyfin, Audiobookshelf,
+  Navidrome/Feishin), containers, Unraid disks, calendar and technical info.
 - **Local ↔ external server addresses** — add your public HomeDeck domain in Settings;
   the app probes the local address and falls back automatically. Auto / Local / External
   can be selected manually.
@@ -59,8 +61,8 @@ A release-signed APK is attached to the latest GitHub Release and included in th
 release tarball at `public/download/homedeck.apk`:
 
 ```
-homedeck.apk   (v1.1.4, Android 8.0+, ~3.0 MB, release-signed)
-SHA-256: D147ADE296CC313F81A95CCAEDE95F4EC8303D2CA0646FB5C9873BF6D3886074
+homedeck.apk   (version matches the release tag, Android 8.0+, ~3.0 MB, release-signed)
+SHA-256: see the notes of the matching GitHub release
 ```
 
 Place it in `public/download/homedeck.apk` on the server to enable the
@@ -124,7 +126,8 @@ For a release APK, configure a signing keystore in `app/build.gradle.kts` and ru
 
 ```
 app/src/main/java/com/homedeck/app/
-  MainActivity.kt      dashboard, polling, service cards
+  MainActivity.kt      dashboard, polling, insight widgets, live now-playing
+  ChartViews.kt        interactive Pi-hole chart, sparkline, donut
   PairingActivity.kt   QR scanner + manual pairing link
   SettingsActivity.kt  theme, accent, layout and connection settings
   Api.kt               HttpURLConnection client (bearer token)

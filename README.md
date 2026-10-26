@@ -109,8 +109,10 @@ server URL and a pairing code. The app exchanges it for a per-device bearer toke
 stores it encrypted with the Android Keystore and can be revoked from the same
 settings page. The dashboard shows services with live stats, supports the same
 local/public URL failover, keeps an offline cache and offers themes, accent colours,
-compact cards, grouping and a refresh interval. See `android/README.md` for build
-instructions (JDK 17 + Android SDK 35).
+compact cards, grouping and a refresh interval. Insights include an interactive
+Pi-hole 24 h chart (drag to inspect, series toggles), a live now-playing card,
+upcoming media, download queue, storage/Docker donuts and a tappable service-health
+strip. See `android/README.md` for build instructions (JDK 17 + Android SDK 35).
 
 A prebuilt **release-signed APK** (`homedeck.apk`, Android 8.0+, version matches the
 server/release tag) is attached to the latest **GitHub Release** and also included in

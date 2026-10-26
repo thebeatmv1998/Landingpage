@@ -91,6 +91,65 @@ object Ui {
             if (strokeColor != null) setStroke(dp(context, strokeWidthDp), strokeColor)
         }
 
+    /** Rounded card background with a ripple so every card feels tappable. */
+    fun ripple(
+        context: Context,
+        fill: Int,
+        radiusDp: Int,
+        strokeColor: Int? = null,
+        rippleColor: Int = Color.WHITE,
+        rippleAlpha: Int = 28,
+    ): RippleDrawable = RippleDrawable(
+        ColorStateList.valueOf(withAlpha(rippleColor, rippleAlpha)),
+        rounded(context, fill, radiusDp, strokeColor),
+        null,
+    )
+
+    /** Small pill used to toggle chart series on/off. */
+    fun toggleChip(
+        context: Context,
+        palette: Palette,
+        label: String,
+        color: Int,
+        active: Boolean,
+        onChange: (Boolean) -> Unit,
+    ): LinearLayout {
+        var on = active
+        val chip = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(context, 9), dp(context, 5), dp(context, 10), dp(context, 5))
+            isClickable = true
+            isFocusable = true
+        }
+        val dot = View(context).apply { background = circle(context, color, 3) }
+        val text = text(context, label, 10.5f, palette.text, true)
+        chip.addView(dot, LinearLayout.LayoutParams(dp(context, 6), dp(context, 6)))
+        chip.addView(text, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { leftMargin = dp(context, 5) })
+        fun paint() {
+            chip.background = ripple(
+                context,
+                if (on) withAlpha(color, 34) else palette.card2,
+                20,
+                palette.line,
+                palette.text,
+                if (palette.isDark) 30 else 18,
+            )
+            text.setTextColor(if (on) palette.text else palette.muted)
+            chip.alpha = if (on) 1f else 0.72f
+        }
+        paint()
+        chip.setOnClickListener {
+            on = !on
+            paint()
+            onChange(on)
+        }
+        return chip
+    }
+
     fun spacer(context: Context, heightDp: Int): View =
         View(context).apply { layoutParams = LinearLayout.LayoutParams(1, dp(context, heightDp)) }
 

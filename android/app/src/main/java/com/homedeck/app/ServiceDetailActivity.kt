@@ -229,23 +229,73 @@ class ServiceDetailActivity : AppCompatActivity() {
     private fun addPihole(service: Service) {
         if (service.charts.pihole.size < 2) return
         val body = section("Queries · 24h")
+
+        fun stat(label: String): String {
+            val raw = service.stats.firstOrNull { it.label.equals(label, true) }?.value?.trim() ?: ""
+            return if (raw.isNotEmpty() && raw.all { it.isDigit() }) formatCount(raw.toLong()) else raw
+        }
+        val queries = stat("Queries today").ifEmpty { formatCount(service.charts.pihole.sumOf { it.queries }) }
+        val blocked = stat("Blocked").ifEmpty { formatCount(service.charts.pihole.sumOf { it.blocked }) }
+        val rate = stat("Blocked %").ifEmpty {
+            val total = service.charts.pihole.sumOf { it.queries }
+            val blockedTotal = service.charts.pihole.sumOf { it.blocked }
+            if (total > 0) String.format(Locale.US, "%.1f%%", blockedTotal * 100.0 / total) else "0%"
+        }
+
+        val statsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        statsRow.addView(statCell("Queries", queries, palette.text), Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        statsRow.addView(
+            statCell("Blocked", blocked, palette.bad),
+            Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 6, 0, 0, 0),
+        )
+        statsRow.addView(
+            statCell("Blocked %", rate, palette.accent),
+            Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 6, 0, 0, 0),
+        )
+        body.addView(statsRow)
+
         val chart = AreaChartView(this).apply {
             points = service.charts.pihole
             accent = palette.accent
             blockedColor = palette.bad
             gridColor = palette.line
             textColor = palette.faint
+            bubbleColor = palette.card2
+            bubbleTextColor = palette.text
         }
-        body.addView(chart, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 160)))
+        body.addView(chart, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 190)), 0, 10, 0, 0))
+
         val legend = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        legend.addView(dot(palette.accent), Ui.lp(Ui.dp(this, 8), Ui.dp(this, 8)))
-        legend.addView(Ui.text(this, "Queries", 10.5f, palette.muted), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 4, 0, 14, 0))
-        legend.addView(dot(palette.bad), Ui.lp(Ui.dp(this, 8), Ui.dp(this, 8)))
-        legend.addView(Ui.text(this, "Blocked", 10.5f, palette.muted), Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 4, 0, 0, 0))
+        legend.addView(Ui.toggleChip(this, palette, "Queries", palette.accent, true) { on -> chart.showQueries = on })
+        legend.addView(
+            Ui.toggleChip(this, palette, "Blocked", palette.bad, true) { on -> chart.showBlocked = on },
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
+        )
+        legend.addView(
+            Ui.text(this, "drag to inspect", 9.5f, palette.faint).apply { gravity = Gravity.END },
+            Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+        )
         body.addView(legend, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0))
+    }
+
+    private fun statCell(label: String, value: String, color: Int): LinearLayout {
+        val cell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Ui.rounded(this@ServiceDetailActivity, palette.card2, 10, palette.line)
+            setPadding(Ui.dp(this@ServiceDetailActivity, 9), Ui.dp(this@ServiceDetailActivity, 7), Ui.dp(this@ServiceDetailActivity, 9), Ui.dp(this@ServiceDetailActivity, 7))
+        }
+        cell.addView(Ui.text(this, label, 9.5f, palette.muted))
+        cell.addView(
+            Ui.text(this, value, 15f, color, true).apply {
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            },
+            Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0),
+        )
+        return cell
     }
 
     private fun addSAB(service: Service) {
