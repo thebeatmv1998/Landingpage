@@ -41,6 +41,7 @@ class ServiceDetailActivity : AppCompatActivity() {
     private var activeBase: String = ""
     private var loading = false
     private var taskOverlay: TaskOverlay? = null
+    private var actionRunning = false
 
     private data class LiveRow(
         val time: TextView,
@@ -427,6 +428,8 @@ class ServiceDetailActivity : AppCompatActivity() {
                         confirm = "Update all containers? This can take a while.",
                         progressTitle = "Updating all containers",
                         progressDetail = "Unraid is pulling images and recreating containers. This can take several minutes.",
+                        progressDoneTitle = "All containers updated",
+                        progressFailTitle = "Update all failed",
                     )
                 },
                 Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 0, 0, 8),
@@ -462,6 +465,30 @@ class ServiceDetailActivity : AppCompatActivity() {
             }, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0))
             if (isAdmin() && container.id.isNotEmpty() && (service.type == "docker" || service.type == "unraid")) {
                 val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                val busyRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    visibility = View.GONE
+                    setPadding(0, Ui.dp(this@ServiceDetailActivity, 4), 0, 0)
+                }
+                val busySpinner = ProgressBar(this).apply {
+                    indeterminateTintList = ColorStateList.valueOf(palette.accent)
+                }
+                busyRow.addView(busySpinner, Ui.lp(Ui.dp(this, 16), Ui.dp(this, 16)))
+                val busyText = Ui.text(this, "", 10f, palette.muted, true)
+                busyRow.addView(
+                    busyText,
+                    Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
+                )
+                fun beginBusy(label: String) {
+                    actions.visibility = View.GONE
+                    busyRow.visibility = View.VISIBLE
+                    busyText.text = label
+                }
+                fun endBusy() {
+                    actions.visibility = View.VISIBLE
+                    busyRow.visibility = View.GONE
+                }
                 if (container.update) {
                     actions.addView(
                         Ui.actionButton(this, palette, "Update", R.drawable.ic_update, palette.accent) {
@@ -471,6 +498,10 @@ class ServiceDetailActivity : AppCompatActivity() {
                                 container.id,
                                 progressTitle = "Updating ${container.name}",
                                 progressDetail = "Pulling the image and recreating the container. This can take a few minutes.",
+                                progressDoneTitle = "Update complete",
+                                progressFailTitle = "Update failed",
+                                onStart = { beginBusy("Updating…") },
+                                onError = { endBusy() },
                             )
                         },
                     )
@@ -478,24 +509,57 @@ class ServiceDetailActivity : AppCompatActivity() {
                 if (running) {
                     actions.addView(
                         Ui.actionButton(this, palette, "Restart", R.drawable.ic_refresh, palette.muted) {
-                            runAction(service, "restart", container.id, confirm = "Restart ${container.name}?")
+                            runAction(
+                                service,
+                                "restart",
+                                container.id,
+                                confirm = "Restart ${container.name}?",
+                                progressTitle = "Restarting ${container.name}",
+                                progressDetail = "Stopping and starting the container…",
+                                progressDoneTitle = "Restart complete",
+                                progressFailTitle = "Restart failed",
+                                onStart = { beginBusy("Restarting…") },
+                                onError = { endBusy() },
+                            )
                         },
                         Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
                     )
                     actions.addView(
                         Ui.actionButton(this, palette, "Stop", R.drawable.ic_stop, palette.bad) {
-                            runAction(service, "stop", container.id, confirm = "Stop ${container.name}?")
+                            runAction(
+                                service,
+                                "stop",
+                                container.id,
+                                confirm = "Stop ${container.name}?",
+                                progressTitle = "Stopping ${container.name}",
+                                progressDetail = "Shutting down the container…",
+                                progressDoneTitle = "Stopped",
+                                progressFailTitle = "Stop failed",
+                                onStart = { beginBusy("Stopping…") },
+                                onError = { endBusy() },
+                            )
                         },
                         Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
                     )
                 } else {
                     actions.addView(
                         Ui.actionButton(this, palette, "Start", R.drawable.ic_play, palette.ok) {
-                            runAction(service, "start", container.id)
+                            runAction(
+                                service,
+                                "start",
+                                container.id,
+                                progressTitle = "Starting ${container.name}",
+                                progressDetail = "Starting the container…",
+                                progressDoneTitle = "Started",
+                                progressFailTitle = "Start failed",
+                                onStart = { beginBusy("Starting…") },
+                                onError = { endBusy() },
+                            )
                         },
                     )
                 }
                 col.addView(actions, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 5, 0, 0))
+                col.addView(busyRow, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 2, 0, 0))
             }
             row.addView(col, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             if (container.url.isNotEmpty()) {
@@ -919,10 +983,24 @@ class ServiceDetailActivity : AppCompatActivity() {
         confirm: String? = null,
         progressTitle: String? = null,
         progressDetail: String = "",
+        progressDoneTitle: String = "Done",
+        progressFailTitle: String = "Failed",
+        onStart: (() -> Unit)? = null,
+        onError: (() -> Unit)? = null,
     ) {
-        val perform = {
+        fun perform() {
+            if (actionRunning) return
+            actionRunning = true
+            onStart?.invoke()
             val task = progressTitle?.let {
-                TaskOverlay.show(this, palette, it, progressDetail).also { overlay -> taskOverlay = overlay }
+                TaskOverlay.show(
+                    this,
+                    palette,
+                    it,
+                    progressDetail,
+                    progressDoneTitle,
+                    progressFailTitle,
+                ).also { overlay -> taskOverlay = overlay }
             }
             executor.execute {
                 try {
@@ -935,13 +1013,16 @@ class ServiceDetailActivity : AppCompatActivity() {
                     )
                     handler.post {
                         if (isFinishing || isDestroyed) return@post
+                        actionRunning = false
                         if (result.ok) {
                             if (task != null) task.done(result.message)
                             else Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
                         } else if (task != null) {
                             task.fail(result.message)
+                            onError?.invoke()
                         } else {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                            onError?.invoke()
                         }
                         if (result.ok) handler.postDelayed({ load() }, if (task != null) 1200 else 700)
                     }
@@ -949,8 +1030,10 @@ class ServiceDetailActivity : AppCompatActivity() {
                     val message = error.message ?: "Action failed"
                     handler.post {
                         if (isFinishing || isDestroyed) return@post
+                        actionRunning = false
                         if (task != null) task.fail(message)
                         else Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                        onError?.invoke()
                     }
                 }
             }

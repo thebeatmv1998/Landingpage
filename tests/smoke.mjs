@@ -236,7 +236,7 @@ async function main() {
   ok(deckPng.status === 200 && (deckPng.headers.get('content-type') || '').includes('image/png'), 'HomeDeck PNG icon for Unraid is served locally');
   r = await fetch(BASE + '/js/task.js');
   const taskJs = await r.text();
-  ok(r.status === 200 && taskJs.includes('export function showTask'), 'task progress module is served');
+  ok(r.status === 200 && taskJs.includes('export function showTask') && taskJs.includes('task-fill') && taskJs.includes('doneTitle'), 'task progress module is served');
   r = await call(`/api/services/${ids['Seerr']}/action`, { method: 'POST', body: { action: 'approve_request', value: 1 } });
   ok(r.status === 200 && r.json?.ok === true, 'Seerr admin approve request');
   r = await call('/api/summary');

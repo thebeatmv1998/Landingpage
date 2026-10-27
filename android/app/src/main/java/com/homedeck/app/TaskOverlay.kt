@@ -26,11 +26,14 @@ class TaskOverlay private constructor(
     private val palette: Palette,
     title: String,
     detail: String,
+    private val doneTitle: String,
+    private val failTitle: String,
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private val titleView: TextView
     private val detailView: TextView
     private val elapsedView: TextView
+    private val progressBar: ProgressBar
     private val ring: ProgressBar
     private val stateIcon: ImageView
     private val root: FrameLayout
@@ -73,15 +76,25 @@ class TaskOverlay private constructor(
         titleView = Ui.text(context, title, 15f, palette.text, true)
         detailView = Ui.text(context, detail, 11f, palette.muted).apply { maxLines = 4 }
         elapsedView = Ui.text(context, "0:00", 10f, palette.faint)
+        progressBar = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            isIndeterminate = true
+            indeterminateTintList = ColorStateList.valueOf(palette.accent)
+            progressBackgroundTintList = ColorStateList.valueOf(palette.line)
+        }
         text.addView(titleView)
         text.addView(detailView, Ui.margins(context, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
         ), 0, 3, 0, 0))
+        text.addView(progressBar, Ui.margins(context, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            Ui.dp(context, 4),
+        ), 0, 7, 0, 0))
         text.addView(elapsedView, Ui.margins(context, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
-        ), 0, 4, 0, 0))
+        ), 0, 5, 0, 0))
         card.addView(text, Ui.margins(context, LinearLayout.LayoutParams(
             0,
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -122,15 +135,35 @@ class TaskOverlay private constructor(
         finished = true
         ticker?.let { handler.removeCallbacks(it) }
         ring.visibility = View.GONE
+        progressBar.isIndeterminate = false
+        progressBar.progress = 100
+        progressBar.progressTintList = ColorStateList.valueOf(if (ok) palette.ok else palette.bad)
         stateIcon.visibility = View.VISIBLE
         stateIcon.setImageResource(if (ok) R.drawable.ic_check else R.drawable.ic_close)
         stateIcon.imageTintList = ColorStateList.valueOf(if (ok) palette.ok else palette.bad)
-        titleView.text = if (ok) "Update complete" else "Update failed"
+        stateIcon.scaleX = 0.4f
+        stateIcon.scaleY = 0.4f
+        stateIcon.animate().scaleX(1f).scaleY(1f).setDuration(220).start()
+        titleView.text = if (ok) doneTitle else failTitle
         detailView.text = message.ifBlank {
             if (ok) "The container is ready." else "The server returned an error."
         }
         paintElapsed()
+        haptic(if (ok) android.view.HapticFeedbackConstants.CONFIRM else android.view.HapticFeedbackConstants.REJECT)
         handler.postDelayed({ dismiss() }, if (ok) 2200L else 6000L)
+    }
+
+    private fun haptic(kind: Int) {
+        try {
+            val view = activity.window?.decorView ?: return
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                view.performHapticFeedback(kind)
+            } else {
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            }
+        } catch (_: Exception) {
+            // haptics are optional
+        }
     }
 
     private fun startTicker() {
@@ -158,7 +191,13 @@ class TaskOverlay private constructor(
     }
 
     companion object {
-        fun show(activity: Activity, palette: Palette, title: String, detail: String): TaskOverlay =
-            TaskOverlay(activity, palette, title, detail).also { it.show() }
+        fun show(
+            activity: Activity,
+            palette: Palette,
+            title: String,
+            detail: String,
+            doneTitle: String = "Done",
+            failTitle: String = "Failed",
+        ): TaskOverlay = TaskOverlay(activity, palette, title, detail, doneTitle, failTitle).also { it.show() }
     }
 }

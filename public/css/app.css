@@ -651,6 +651,7 @@ html[data-theme="light"] .svc-ic.has-img { background: #ffffff; border-color: va
   flex: 1 1 auto; min-height: 0; max-height: none;
 }
 .docker-card {
+  position: relative;
   background: var(--card2); border: 1px solid var(--line);
   border-radius: var(--radius-sm); padding: 10px 11px;
   display: flex; flex-direction: column; gap: 9px; min-width: 0;
@@ -884,3 +885,39 @@ a.cal-row:hover { background: var(--card2); text-decoration: none; }
 @keyframes dc-busy {
   50% { box-shadow: 0 0 0 1px rgba(201, 150, 63, .25), 0 0 18px rgba(201, 150, 63, .12); }
 }
+/* task progress bar */
+.task-track {
+  position: relative; height: 4px; margin-top: 9px; border-radius: 999px;
+  background: rgba(255, 255, 255, .08); overflow: hidden;
+}
+.task-fill {
+  position: absolute; inset: 0 auto 0 0; width: 38%; border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: task-slide 1.35s ease-in-out infinite;
+}
+.task-layer.is-done .task-fill {
+  width: 100%; animation: none; background: var(--ok);
+  transition: width .35s ease;
+}
+.task-layer.is-error .task-fill { background: var(--bad); }
+@keyframes task-slide {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(320%); }
+}
+.docker-card.busy { opacity: .92; }
+.docker-card.busy .ci-icon::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .12); border-top-color: var(--accent);
+  animation: task-spin .9s linear infinite;
+}
+.docker-card.busy::after,
+.docker-card.is-updated::after,
+.docker-card.is-failed::after {
+  position: absolute; top: 6px; right: 8px; z-index: 2;
+  font-size: 8px; font-weight: 700; letter-spacing: .06em;
+  padding: 2px 6px; border-radius: 999px;
+}
+.docker-card.busy::after { content: attr(data-busy-label); color: var(--accent); background: rgba(201, 150, 63, .14); }
+.docker-card.is-updated::after { content: attr(data-done-label); color: var(--ok); background: var(--ok-soft, rgba(95, 201, 141, .14)); }
+.docker-card.is-failed::after { content: 'FAILED'; color: var(--bad); background: rgba(224, 96, 96, .14); }
+.docker-card.is-failed { border-color: var(--bad); }

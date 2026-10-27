@@ -937,6 +937,7 @@ export function renderDocker(body, ctx) {
     const card = btn.closest('.docker-card');
     const name = card?.querySelector('.dc-name')?.textContent?.trim() || 'container';
     card?.classList.add('busy');
+    if (card) card.dataset.busyLabel = 'UPDATING';
     const res = await ctx.runServiceAction(
       Number(btn.dataset.svc),
       { action: 'update', value: btn.dataset.update },
@@ -944,6 +945,8 @@ export function renderDocker(body, ctx) {
         progress: {
           title: `Updating ${name}`,
           detail: 'Pulling the image and recreating the container. This can take a few minutes — keep this tab open.',
+          doneTitle: 'Update complete',
+          failTitle: 'Update failed',
         },
       },
     );
@@ -951,7 +954,13 @@ export function renderDocker(body, ctx) {
     if (!res?.ok) {
       btn.disabled = false;
       btn.classList.remove('loading');
+      if (card) {
+        card.dataset.busyLabel = '';
+        card.classList.add('is-failed');
+        setTimeout(() => card.classList.remove('is-failed'), 3200);
+      }
     } else {
+      if (card) card.dataset.doneLabel = 'UPDATED';
       card?.classList.add('is-updated');
       setTimeout(() => card?.classList.remove('is-updated'), 2600);
       setTimeout(() => ctx.rerenderWidget('docker'), 900);
@@ -967,6 +976,8 @@ export function renderDocker(body, ctx) {
         progress: {
           title: 'Updating all containers',
           detail: 'Unraid is pulling images and recreating containers. This can take several minutes — keep this tab open.',
+          doneTitle: 'All containers updated',
+          failTitle: 'Update all failed',
         },
       },
     );
@@ -982,11 +993,40 @@ export function renderDocker(body, ctx) {
     const buttons = card ? [...card.querySelectorAll('button')] : [btn];
     buttons.forEach((b) => { b.disabled = true; });
     card?.classList.add('busy');
-    const res = await ctx.runServiceAction(Number(btn.dataset.svc), { action, value: btn.dataset.id });
+    const verb = {
+      restart: ['Restarting', 'Restart complete'],
+      stop: ['Stopping', 'Stopped'],
+      start: ['Starting', 'Started'],
+    }[action] || ['Working', 'Done'];
+    if (card) card.dataset.busyLabel = verb[0].toUpperCase();
+    const res = await ctx.runServiceAction(
+      Number(btn.dataset.svc),
+      { action, value: btn.dataset.id },
+      {
+        progress: {
+          title: `${verb[0]} ${name}`,
+          detail: action === 'restart'
+            ? 'Stopping and starting the container…'
+            : action === 'stop'
+              ? 'Shutting down the container…'
+              : 'Starting the container…',
+          doneTitle: verb[1],
+          failTitle: `${verb[0]} failed`,
+        },
+      },
+    );
+    card?.classList.remove('busy');
     if (!res?.ok) {
       buttons.forEach((b) => { b.disabled = false; });
-      card?.classList.remove('busy');
+      if (card) {
+        card.dataset.busyLabel = '';
+        card.classList.add('is-failed');
+        setTimeout(() => card.classList.remove('is-failed'), 3200);
+      }
     } else {
+      if (card) card.dataset.doneLabel = action === 'restart' ? 'RESTARTED' : verb[1].toUpperCase();
+      card?.classList.add('is-updated');
+      setTimeout(() => card?.classList.remove('is-updated'), 2600);
       setTimeout(() => ctx.rerenderWidget('docker'), 900);
     }
   }));

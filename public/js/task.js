@@ -6,7 +6,7 @@ import { icon } from './ui.js';
 // do not expose pull percentages, so the progress is intentionally indeterminate.
 let active = null;
 
-export function showTask({ title, detail = '' } = {}) {
+export function showTask({ title, detail = '', doneTitle = 'Update complete', failTitle = 'Update failed' } = {}) {
   if (active) active.close();
 
   const layer = document.createElement('div');
@@ -19,6 +19,7 @@ export function showTask({ title, detail = '' } = {}) {
       <div class="task-main">
         <div class="task-title">${esc(title || 'Working…')}</div>
         <div class="task-detail">${esc(detail)}</div>
+        <div class="task-track" aria-hidden="true"><div class="task-fill"></div></div>
         <div class="task-elapsed">0:00</div>
       </div>
       <div class="task-state" aria-hidden="true"></div>
@@ -57,7 +58,7 @@ export function showTask({ title, detail = '' } = {}) {
     clearInterval(timer);
     paintElapsed();
     layer.classList.add('is-done', `is-${state}`);
-    titleEl.textContent = state === 'ok' ? 'Update complete' : 'Update failed';
+    titleEl.textContent = state === 'ok' ? doneTitle : failTitle;
     detailEl.textContent = message || (state === 'ok' ? 'The container is ready.' : 'The server returned an error.');
     stateEl.innerHTML = icon(state === 'ok' ? 'check' : 'x');
     closeTimer = setTimeout(close, state === 'ok' ? 2200 : 6000);
