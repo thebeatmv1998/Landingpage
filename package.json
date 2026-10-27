@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "compression": "^1.8.2",
-    "dockerode": "^4.0.2",
+    "dockerode": "^5.0.1",
     "express": "^4.21.2",
     "jose": "^6.2.13",
     "qrcode": "^1.5.4"
