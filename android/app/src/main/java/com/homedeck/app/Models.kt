@@ -18,12 +18,20 @@ data class DockerChart(val running: Int, val stopped: Int, val unhealthy: Int)
 
 data class DownloadsChart(val overall: Int, val speedBps: Long, val paused: Boolean)
 
+data class HostChart(
+    val cpu: List<Float> = emptyList(),
+    val mem: List<Float> = emptyList(),
+    val netRx: List<Float> = emptyList(),
+    val netTx: List<Float> = emptyList(),
+)
+
 data class Charts(
     val pihole: List<ChartPoint> = emptyList(),
     val disks: List<DiskUsage> = emptyList(),
     val bars: List<BarItem> = emptyList(),
     val docker: DockerChart? = null,
     val downloads: DownloadsChart? = null,
+    val host: HostChart? = null,
 )
 
 data class ActivityItem(
@@ -126,6 +134,7 @@ data class Service(
     val serverName: String = "",
     val iconUrl: String = "",
     val color: String = "",
+    val hints: List<String> = emptyList(),
     val activity: List<ActivityItem> = emptyList(),
     val nowPlaying: List<NowPlayingItem> = emptyList(),
     val containers: List<ContainerItem> = emptyList(),

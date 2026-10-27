@@ -85,11 +85,39 @@ npm start          # listens on :8080, data stored in ./data
 | **Tachidesk / Suwayomi** | library size, categories, unread, downloads |
 | **Vaultwarden** | status, user count (with admin token) |
 | **Docker** | running/stopped/unhealthy containers via an opt-in Docker socket/proxy or Unraid - **container icons** (Unraid template icon, else bundled dashboardicons), click to open the WebUI, one-click **update / restart / stop / start** with **live progress feedback and a completion confirmation** |
+| **Host system** | CPU, RAM, swap, temperature, load, network throughput and uptime from `/proc` and `/sys`, with live sparklines and clear fallback hints |
+| **Wake-on-LAN** | send a magic packet to a powered-off host from the service menu (web) or Quick actions (Android) |
 | **Generic** | any other app — up/down check + response time |
 
 All service credentials (API keys, passwords) are stored **AES-256-GCM encrypted** in the
 database and are never sent to the browser. All API calls go through the backend (no CORS,
 no leaked keys), with per-service response caching so your apps aren't hammered.
+
+**Quick actions** are available per service: Sonarr/Radarr/Lidarr can start a missing-media
+search or refresh their library, and a Wake-on-LAN service sends a magic packet. Actions
+respect group visibility, use the existing CSRF/bearer protections and are written to the
+audit log.
+
+### Host system metrics (optional)
+
+Add a **Host system** service and mount the host's procfs/sysfs read-only to see real host
+counters instead of the container's view:
+
+```yaml
+services:
+  homedeck:
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+```
+
+On Unraid, add the same two **Path** mappings to the container template
+(`/proc` → `/host/proc`, `/sys` → `/host/sys`, read-only). HomeDeck auto-detects
+`/host/proc` and `/host/sys`; alternatively set `HOST_PROC` / `HOST_SYS` or the
+`Host /proc path` and `Host /sys path` fields on the service. Temperature needs
+`/sys/class/thermal`; network counters are only fully host-level with the host `/proc`
+mounted. If a path or sensor is unavailable, the widget shows a plain-language hint and
+keeps the metrics it can read.
 
 ### Automatic local ↔ public address switching
 
@@ -214,7 +242,7 @@ Done — it appears in the admin gallery, the forms and the dashboard.
 ```bash
 npm run mock    # starts mock versions of every service API on :9000
 npm run unit    # unit tests for helpers (no network)
-npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 314 assertions)
+npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 329 assertions)
 npm test        # unit + smoke
 ```
 

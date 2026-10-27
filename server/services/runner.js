@@ -46,13 +46,15 @@ import tachidesk from './connectors/tachidesk.js';
 import vaultwarden from './connectors/vaultwarden.js';
 import docker from './connectors/docker.js';
 import unraid from './connectors/unraid.js';
+import host from './connectors/host.js';
+import wol from './connectors/wol.js';
 import generic from './connectors/generic.js';
 
 const connectors = {
   sonarr, radarr, lidarr, prowlarr, nzbhydra, sabnzbd, jellyfin, audiobookshelf,
   seerr, overseerr: seerr, jellyseerr: seerr,
   navidrome, nextcloud, pihole, immich, komga, pingvin, stash, tachidesk, vaultwarden,
-  docker, unraid, generic,
+  docker, unraid, host, wol, generic,
 };
 
 export function getConnector(type) {

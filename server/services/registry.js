@@ -121,7 +121,32 @@ export const registry = [
     fields: [F.apiKey({ help: 'Optional ADMIN_TOKEN to show user count' })],
   },
   {
-    type: 'docker', label: 'Docker', blurb: 'Container engine — container states via the Docker socket',
+    type: 'host', label: 'Host system', blurb: 'CPU, RAM, swap, temperature, network and uptime from /proc and /sys',
+    category: 'System', color: '#3fb8b0', glyph: 'chart', pollMs: 5000,
+    fields: [
+      {
+        key: 'extra.procRoot', label: 'Host /proc path', type: 'text', required: false,
+        placeholder: '/host/proc',
+        help: 'Mount the host /proc read-only (e.g. -v /proc:/host/proc:ro) for host network counters.',
+      },
+      {
+        key: 'extra.sysRoot', label: 'Host /sys path', type: 'text', required: false,
+        placeholder: '/host/sys',
+        help: 'Mount /sys/class/thermal read-only (e.g. -v /sys:/host/sys:ro) to read temperatures.',
+      },
+    ],
+  },
+  {
+    type: 'wol', label: 'Wake-on-LAN', blurb: 'Send a magic packet to a powered-off host from the dashboard',
+    category: 'System', color: '#4cc38a', glyph: 'zap', pollMs: 60000,
+    fields: [
+      { key: 'extra.mac', label: 'MAC address', type: 'text', required: true, placeholder: 'AA:BB:CC:DD:EE:FF' },
+      { key: 'extra.broadcast', label: 'Broadcast address', type: 'text', required: false, placeholder: '192.168.1.255' },
+      { key: 'extra.port', label: 'UDP port', type: 'text', required: false, placeholder: '9' },
+    ],
+  },
+  {
+    type: 'docker', label: 'Docker', blurb: 'Container engine - container states via the Docker socket',
     category: 'System', color: '#1d63ed', glyph: 'cube', pollMs: 20000,
     fields: [{
       key: 'extra.socketPath', label: 'Docker socket path', type: 'text', required: false,

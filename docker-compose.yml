@@ -7,6 +7,10 @@ services:
       - "8080:8000"
     volumes:
       - homedeck-data:/data
+      # Optional host metrics (Host system service). Read-only; used for CPU,
+      # RAM, temperature and host network counters.
+      # - /proc:/host/proc:ro
+      # - /sys:/host/sys:ro
       # The Docker socket is intentionally NOT mounted by default. It grants
       # host-level control, and a ":ro" mount is not a security boundary for the
       # Docker API. If you need the Docker widget, use a filtering socket proxy.

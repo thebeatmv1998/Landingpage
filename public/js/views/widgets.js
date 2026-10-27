@@ -55,6 +55,7 @@ export const WIDGETS = [
   { id: 'calendar', title: 'Media Calendar', icon: 'calendar', defaultSpan: 2, defaultOn: true, desc: 'Upcoming episodes, movies and albums (next 7 days)' },
   { id: 'pihole', title: 'DNS / Ad Blocking', icon: 'shield', defaultSpan: 2, defaultOn: true, desc: 'Pi-hole stats and 24h query graph' },
   { id: 'docker', title: 'Docker', icon: 'cube', defaultSpan: 2, defaultOn: true, desc: 'Container states with WebUI links, updates and health' },
+  { id: 'host', title: 'Host System', icon: 'chart', defaultSpan: 2, defaultOn: true, desc: 'CPU, RAM, swap, temperature, network and uptime from /proc and /sys' },
   { id: 'unraid', title: 'Unraid System', icon: 'cube', defaultSpan: 2, defaultOn: true, desc: 'CPU, uptime, array, parity and disk temperatures' },
   { id: 'nextcloud', title: 'Nextcloud', icon: 'cloud', defaultSpan: 2, defaultOn: true, desc: 'Storage, files, users, shares and server load' },
   { id: 'disks', title: 'Disk Space', icon: 'chart', defaultSpan: 2, desc: 'Disk usage from *arr apps and Nextcloud' },
@@ -314,6 +315,50 @@ async function openServiceMenu(id, ctx, rerender) {
       else toast(local ? 'Local address is reachable' : 'Local address unreachable — using the public address', local ? 'success' : 'info');
     });
     actions.push(recheck);
+  }
+  const arrLabel = { sonarr: 'episodes', radarr: 'movies', lidarr: 'albums' }[svc.type];
+  if (ctx.runServiceAction && arrLabel) {
+    const search = h(`<button class="btn btn-sm btn-block">${icon('search')} Search missing ${arrLabel}</button>`);
+    search.addEventListener('click', async () => {
+      m.close();
+      await ctx.runServiceAction(id, { action: 'missing_search' }, {
+        progress: {
+          title: `Searching missing ${arrLabel}`,
+          detail: 'Asking the service to search for monitored media that is still missing.',
+          doneTitle: 'Search started',
+          failTitle: 'Search failed',
+        },
+      });
+    });
+    actions.push(search);
+    const refresh = h(`<button class="btn btn-sm btn-block">${icon('refresh')} Refresh library</button>`);
+    refresh.addEventListener('click', async () => {
+      m.close();
+      await ctx.runServiceAction(id, { action: 'refresh' }, {
+        progress: {
+          title: 'Refreshing library',
+          detail: 'Asking the service to refresh its metadata.',
+          doneTitle: 'Refresh started',
+          failTitle: 'Refresh failed',
+        },
+      });
+    });
+    actions.push(refresh);
+  }
+  if (ctx.runServiceAction && svc.type === 'wol') {
+    const wake = h(`<button class="btn btn-sm btn-block">${icon('zap')} Wake this host</button>`);
+    wake.addEventListener('click', async () => {
+      m.close();
+      await ctx.runServiceAction(id, { action: 'wake' }, {
+        progress: {
+          title: `Waking ${svc.name}`,
+          detail: 'Sending a Wake-on-LAN magic packet.',
+          doneTitle: 'Magic packet sent',
+          failTitle: 'Wake failed',
+        },
+      });
+    });
+    actions.push(wake);
   }
   if (ctx.isAdmin) {
     const edit = h(`<button class="btn btn-sm btn-block">${icon('edit')} Edit service…</button>`);
@@ -774,6 +819,40 @@ export function renderPihole(body, ctx) {
     const rect = svg.getBoundingClientRect();
     showAt(rect.left + (last ? keyIndex / last : 0) * rect.width, rect.top + rect.height / 2);
   });
+}
+
+// ---------------------------------------------------------------- host system
+export function renderHost(body, ctx) {
+  const svc = ctx.services.find((s) => s.type === 'host');
+  if (!svc) { body.innerHTML = emptyWidget('Host system', 'chart'); return; }
+  if (!svc.online) { body.innerHTML = offlineHtml(svc); return; }
+  const get = (label) => statValue(svc, label);
+  const charts = svc.charts?.host || {};
+  const tile = (label, value) => `<div class="stat-tile"><div class="v">${esc(value ?? 'n/a')}</div><div class="l">${esc(label)}</div></div>`;
+  const spark = (label, values, color) => {
+    const svg = sparkline({ values: (values || []).slice(-32), width: 190, height: 36, color });
+    return `<div style="min-width:0"><div class="row-sub">${esc(label)}</div>${svg || '<div class="chart-empty" style="padding:8px 0">Collecting…</div>'}</div>`;
+  };
+  const hints = Array.isArray(svc.hints) ? svc.hints : [];
+  body.innerHTML = `
+    <div class="stat-tiles">
+      ${tile('CPU', get('CPU'))}
+      ${tile('RAM', get('RAM'))}
+      ${get('Swap') ? tile('Swap', get('Swap')) : ''}
+      ${tile('Temp', get('Temp'))}
+    </div>
+    <div class="rowlist" style="margin-top:8px">
+      <div class="rowitem"><span class="row-sub" style="flex:1">Uptime</span><b>${esc(get('Uptime') || 'n/a')}</b></div>
+      <div class="rowitem"><span class="row-sub" style="flex:1">Load</span><b>${esc(get('Load') || 'n/a')}</b></div>
+      <div class="rowitem"><span class="row-sub" style="flex:1">Network</span><b>↓ ${esc(get('Net down') || '0')} · ↑ ${esc(get('Net up') || '0')}</b></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px">
+      ${spark('CPU %', charts.cpu, 'var(--accent)')}
+      ${spark('RAM %', charts.mem, 'var(--ok)')}
+      ${spark('Net down', charts.netRx, 'var(--accent2, var(--accent))')}
+      ${spark('Net up', charts.netTx, 'var(--bad)')}
+    </div>
+    ${hints.map((hint) => `<div class="hint" style="margin-top:8px">${icon('zap')} ${esc(hint)}</div>`).join('')}`;
 }
 
 // ---------------------------------------------------------------- disks

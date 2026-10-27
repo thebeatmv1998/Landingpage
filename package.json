@@ -1,6 +1,6 @@
 {
   "name": "homedeck",
-  "version": "1.1.17",
+  "version": "1.1.18",
   "description": "Self-hosted home lab landing page / dashboard with live stats, media info and deep .arr integrations",
   "type": "module",
   "main": "server/index.js",

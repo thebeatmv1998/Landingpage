@@ -101,6 +101,9 @@ object Api {
                     serverName = str(j, "serverName"),
                     iconUrl = str(j, "iconUrl"),
                     color = str(j, "color"),
+                    hints = j.optJSONArray("hints")?.let { arr ->
+                        (0 until arr.length()).mapNotNull { idx -> arr.optString(idx, "").takeIf { it.isNotEmpty() } }
+                    } ?: emptyList(),
                     activity = parseActivity(j.optJSONArray("activity")),
                     nowPlaying = parseNowPlaying(j.optJSONArray("nowPlaying")),
                     containers = parseContainers(j.optJSONArray("containers")),
@@ -352,7 +355,25 @@ object Api {
                 paused = it.optBoolean("paused", false),
             )
         }
-        return Charts(pihole = pihole, disks = disks, bars = bars, docker = docker, downloads = downloads)
+        val host = j.optJSONObject("host")?.let {
+            HostChart(
+                cpu = floats(it.optJSONArray("cpu")),
+                mem = floats(it.optJSONArray("mem")),
+                netRx = floats(it.optJSONArray("netRx")),
+                netTx = floats(it.optJSONArray("netTx")),
+            )
+        }
+        return Charts(pihole = pihole, disks = disks, bars = bars, docker = docker, downloads = downloads, host = host)
+    }
+
+    private fun floats(array: JSONArray?): List<Float> {
+        if (array == null) return emptyList()
+        val out = mutableListOf<Float>()
+        for (i in 0 until array.length()) {
+            val value = array.optDouble(i, Double.NaN)
+            if (value.isFinite()) out.add(value.toFloat())
+        }
+        return out
     }
 
     private fun request(method: String, url: String, token: String?, body: String?): String {

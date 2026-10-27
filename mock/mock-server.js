@@ -73,6 +73,7 @@ app.get('/sonarr/api/v3/diskspace', (req, res) => res.json(DISKS));
 app.get('/sonarr/api/v3/wanted/missing', (req, res) => res.json({ page: 1, pageSize: 1, totalRecords: 3, records: [] }));
 app.get('/sonarr/api/v3/calendar', (req, res) => res.json([CAL_ITEM]));
 app.get('/sonarr/api/v3/mediacover/1/poster.jpg', (req, res) => { res.type('image/png'); res.send(PNG); });
+app.post('/sonarr/api/v3/command', (req, res) => res.json({ id: 1, name: req.body?.name || 'Command' }));
 
 // ------------------------------------------------------------------ Radarr
 const MOVIES = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, title: `Movie ${i + 1}`, monitored: true, hasFile: i > 4, statistics: { sizeOnDisk: 5 * 1024 ** 3 } }));
@@ -84,6 +85,7 @@ app.get('/radarr/api/v3/queue', (req, res) => res.json({ totalRecords: 0, record
 app.get('/radarr/api/v3/diskspace', (req, res) => res.json(DISKS));
 app.get('/radarr/api/v3/calendar', (req, res) => res.json([{ id: 5, title: 'New Film', releaseDate: new Date(Date.now() + 36e5 * 72).toISOString(), hasFile: false, images: [{ coverType: 'poster', url: 'https://image.tmdb.org/new-film.jpg' }] }]));
 app.get('/radarr/api/v3/mediacover/5/poster.jpg', (req, res) => { res.type('image/png'); res.send(PNG); });
+app.post('/radarr/api/v3/command', (req, res) => res.json({ id: 2, name: req.body?.name || 'Command' }));
 
 // ------------------------------------------------------------------ Lidarr
 app.use('/lidarr', (req, res, next) => { if (!need(res, keyOk(req))) return; next(); });
@@ -92,6 +94,7 @@ const ALBUMS = { page: 1, pageSize: 1000, totalRecords: 8, records: Array.from({
 })) };
 app.get('/lidarr/api/v1/system/status', (req, res) => res.json({ appName: 'Lidarr', version: '2.3.0.4206' }));
 app.get('/lidarr/api/v1/health', (req, res) => res.json([]));
+app.post('/lidarr/api/v1/command', (req, res) => res.json({ id: 3, name: req.body?.name || 'Command' }));
 app.get('/lidarr/api/v1/album', (req, res) => res.json(ALBUMS));
 app.get('/lidarr/api/v1/queue', (req, res) => res.json({ totalRecords: 1, records: [{ id: 3, title: 'New Album', status: 'downloading', progress: 10, size: 80000000, sizeleft: 72000000 }] }));
 app.get('/lidarr/api/v1/diskspace', (req, res) => res.json(DISKS));

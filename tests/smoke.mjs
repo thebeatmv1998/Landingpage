@@ -80,6 +80,16 @@ const { totpCode } = await import(pathToFileURL(path.join(ROOT, 'server', 'auth'
 const children = [];
 async function main() {
   fs.rmSync(DATA, { recursive: true, force: true });
+  // Fixtures for the host connector: a tiny synthetic /proc + /sys tree.
+  fs.mkdirSync(path.join(DATA, 'hostproc', 'net'), { recursive: true });
+  fs.writeFileSync(path.join(DATA, 'hostproc', 'stat'), 'cpu  1000 0 500 8000 100 0 0 0 0 0\ncpu0 1000 0 500 8000 100 0 0 0 0 0\n');
+  fs.writeFileSync(path.join(DATA, 'hostproc', 'meminfo'), 'MemTotal: 16000000 kB\nMemAvailable: 8000000 kB\nSwapTotal: 2000000 kB\nSwapFree: 1500000 kB\n');
+  fs.writeFileSync(path.join(DATA, 'hostproc', 'uptime'), '123456.78 0.00\n');
+  fs.writeFileSync(path.join(DATA, 'hostproc', 'loadavg'), '0.50 0.40 0.30 1/100 1234\n');
+  fs.writeFileSync(path.join(DATA, 'hostproc', 'net', 'dev'), 'Inter-|   Receive                                                |  Transmit\n face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed\n  eth0: 1000000 0 0 0 0 0 0 0 2000000 0 0 0 0 0 0 0\n');
+  fs.mkdirSync(path.join(DATA, 'hostsys', 'class', 'thermal', 'thermal_zone0'), { recursive: true });
+  fs.writeFileSync(path.join(DATA, 'hostsys', 'class', 'thermal', 'thermal_zone0', 'temp'), '45000\n');
+  fs.writeFileSync(path.join(DATA, 'hostsys', 'class', 'thermal', 'thermal_zone0', 'type'), 'x86_pkg_temp\n');
 
   const mock = spawn('node', [path.join(ROOT, 'mock', 'mock-server.js')], { stdio: ['ignore', 'pipe', 'pipe'] });
   children.push(mock);
@@ -189,6 +199,8 @@ async function main() {
     { type: 'tachidesk', name: 'Tachidesk', url: 'http://127.0.0.1:9000/tachidesk', username: 'suwa', password: 'suwapass', category: 'Reading' },
     { type: 'vaultwarden', name: 'Vaultwarden', url: 'http://127.0.0.1:9000/vaultwarden', api_key: 'vw-admin-token', category: 'Security' },
     { type: 'unraid', name: 'Unraid', url: 'http://127.0.0.1:9000/unraid', api_key: 'testkey-unraid', category: 'System' },
+    { type: 'host', name: 'Host', url: 'http://127.0.0.1:9000/', category: 'System', extra: { procRoot: path.join(DATA, 'hostproc'), sysRoot: path.join(DATA, 'hostsys') } },
+    { type: 'wol', name: 'Wake PC', url: 'http://127.0.0.1:9000/', category: 'System', extra: { mac: 'AA:BB:CC:DD:EE:FF', broadcast: '127.0.0.1', port: '9' } },
     { type: 'generic', name: 'Router', url: 'http://127.0.0.1:9000/generic', category: 'Network' },
     { type: 'docker', name: 'Docker (unavailable in test)', url: 'http://localhost', category: 'System', extra: { socketPath: '/tmp/homedeck-no-such-docker.sock' } },
   ];
@@ -368,6 +380,18 @@ async function main() {
   ok((byName['NZBHydra']?.charts?.bars || []).length === 2, 'NZBHydra success-rate bars');
   ok(byName['Router']?.online === true, 'generic connector online');
   ok(byName['Unraid']?.online === true, `Unraid online (${byName['Unraid']?.error || ''})`);
+  ok(byName['Host']?.stats?.some((x) => x.label === 'RAM' && x.value === '50%'), 'host widget RAM from /proc/meminfo');
+  ok(byName['Host']?.stats?.some((x) => x.label === 'Temp' && String(x.value).includes('45')), 'host widget temperature from /sys');
+  ok(byName['Host']?.stats?.some((x) => x.label === 'Uptime' && x.value === '1d 10h'), 'host widget uptime');
+  ok((byName['Host']?.charts?.host?.cpu || []).length >= 1, 'host widget sparkline samples');
+  ok((byName['Host']?.hints || []).length === 0, 'host widget has no fallback warnings with /proc + /sys mounted');
+  ok(byName['Wake PC']?.stats?.some((x) => x.label === 'MAC' && x.value === 'AA:BB:CC:DD:EE:FF'), 'WoL service exposes its MAC');
+  r = await call(`/api/services/${ids['Wake PC']}/action`, { method: 'POST', body: { action: 'wake' } });
+  ok(r.status === 200 && r.json?.ok === true, 'WoL magic packet action accepted');
+  r = await call(`/api/services/${ids['Sonarr']}/action`, { method: 'POST', body: { action: 'missing_search' } });
+  ok(r.status === 200 && r.json?.ok === true, 'Sonarr missing-media search action');
+  r = await call(`/api/services/${ids['Radarr']}/action`, { method: 'POST', body: { action: 'refresh' } });
+  ok(r.status === 200 && r.json?.ok === true, 'Radarr library refresh action');
   ok(byName['Unraid']?.stats?.some((x) => x.label === 'Array' && x.value === 'STARTED'), 'Unraid array state');
   ok(byName['Unraid']?.stats?.some((x) => x.label === 'Uptime' && /^1d /.test(String(x.value))), `Unraid uptime from boot ISO (${byName['Unraid']?.stats?.find((x) => x.label === 'Uptime')?.value})`);
   ok(byName['Unraid']?.stats?.some((x) => x.label === 'Containers' && x.value === '5/6'), 'Unraid containers via docker.containers (UPPERCASE states)');

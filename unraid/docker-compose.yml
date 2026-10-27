@@ -8,6 +8,9 @@ services:
       - "8753:8000"
     volumes:
       - /mnt/user/appdata/homedeck:/data
+      # Host-Metriken (optional): Host-/proc und /sys read-only einbinden.
+      # - /proc:/host/proc:ro
+      # - /sys:/host/sys:ro
       # Der Docker-Socket wird bewusst NICHT standardmäßig gemountet: Er gibt
       # Host-Kontrolle. Für das Docker-Widget einen filternden Socket-Proxy nutzen.
     environment:

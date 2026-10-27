@@ -220,6 +220,8 @@ class ServiceDetailActivity : AppCompatActivity() {
         }
         content.addView(header, sectionMargins())
 
+        if (service.type in setOf("sonarr", "radarr", "lidarr", "wol")) addQuickActions(service)
+
         when (service.type) {
             "pihole" -> addPihole(service)
             "sabnzbd" -> addSAB(service)
@@ -228,6 +230,7 @@ class ServiceDetailActivity : AppCompatActivity() {
             "sonarr", "radarr", "lidarr" -> addArr(service)
             "jellyfin", "audiobookshelf", "navidrome" -> addNowPlaying(service)
             "seerr", "overseerr", "jellyseerr" -> addRequests(service)
+            "host" -> addHost(service)
             "prowlarr", "nzbhydra" -> addIndexers(service)
         }
 
@@ -235,6 +238,92 @@ class ServiceDetailActivity : AppCompatActivity() {
         if (service.history.isNotEmpty()) addHistory(service)
         if (service.calendar.isNotEmpty()) addCalendar(service)
         addInfo(service)
+    }
+
+    private fun addQuickActions(service: Service) {
+        val body = section("Quick actions")
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        if (service.type in setOf("sonarr", "radarr", "lidarr")) {
+            row.addView(
+                Ui.actionButton(this, palette, "Search missing", R.drawable.ic_search, palette.accent) {
+                    runAction(
+                        service,
+                        "missing_search",
+                        progressTitle = "Searching missing media",
+                        progressDetail = "Asking ${service.name} to search for monitored media that is still missing.",
+                        progressDoneTitle = "Search started",
+                        progressFailTitle = "Search failed",
+                    )
+                },
+            )
+            row.addView(
+                Ui.actionButton(this, palette, "Refresh library", R.drawable.ic_refresh, palette.muted) {
+                    runAction(
+                        service,
+                        "refresh",
+                        progressTitle = "Refreshing library",
+                        progressDetail = "Asking ${service.name} to refresh its metadata.",
+                        progressDoneTitle = "Refresh started",
+                        progressFailTitle = "Refresh failed",
+                    )
+                },
+                Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT), 6, 0, 0, 0),
+            )
+        }
+        if (service.type == "wol") {
+            row.addView(
+                Ui.actionButton(this, palette, "Wake host", R.drawable.ic_power, palette.ok) {
+                    runAction(
+                        service,
+                        "wake",
+                        progressTitle = "Waking ${service.name}",
+                        progressDetail = "Sending a Wake-on-LAN magic packet.",
+                        progressDoneTitle = "Magic packet sent",
+                        progressFailTitle = "Wake failed",
+                    )
+                },
+            )
+        }
+        body.addView(row)
+    }
+
+    private fun addHost(service: Service) {
+        val chart = service.charts.host ?: return
+        val body = section("Live metrics")
+        fun cell(label: String, values: List<Float>, color: Int): LinearLayout {
+            val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            box.addView(Ui.text(this, label, 10f, palette.muted))
+            val spark = SparklineView(this).apply {
+                this.values = values
+                this.accent = color
+                this.gridColor = palette.line
+            }
+            box.addView(spark, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this@ServiceDetailActivity, 48)), 0, 4, 0, 0))
+            return box
+        }
+        val first = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        first.addView(cell("CPU %", chart.cpu, palette.accent), Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        first.addView(
+            cell("RAM %", chart.mem, palette.ok),
+            Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 10, 0, 0, 0),
+        )
+        val second = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        second.addView(cell("Net down", chart.netRx, palette.accent), Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        second.addView(
+            cell("Net up", chart.netTx, palette.bad),
+            Ui.margins(this, Ui.lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f), 10, 0, 0, 0),
+        )
+        body.addView(first)
+        body.addView(second, Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 8, 0, 0))
+        for (hint in service.hints) {
+            body.addView(
+                Ui.text(this, hint, 10f, palette.warn),
+                Ui.margins(this, Ui.lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT), 0, 7, 0, 0),
+            )
+        }
     }
 
     private fun addPihole(service: Service) {

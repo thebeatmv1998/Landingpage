@@ -147,9 +147,37 @@ async function test(ctx, kind, apiBase) {
   }
 }
 
+async function runAction(ctx, kind, apiBase, action) {
+  if (!ctx.base) return { ok: false, message: 'URL is not configured' };
+  if (!ctx.apiKey) return { ok: false, message: 'API key is not configured' };
+  const commands = {
+    series: { missing_search: 'MissingEpisodeSearch', refresh: 'RefreshSeries', rss_sync: 'RssSync' },
+    movie: { missing_search: 'MissingMoviesSearch', refresh: 'RefreshMovie', rss_sync: 'RssSync' },
+    album: { missing_search: 'MissingAlbumSearch', refresh: 'RefreshArtist', rss_sync: 'RssSync' },
+  }[kind] || {};
+  const command = commands[action];
+  if (!command) return { ok: false, message: `Unknown action "${action}"` };
+  try {
+    await api(ctx, apiBase, '/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: command }),
+    });
+    const labels = {
+      missing_search: 'Missing media search started',
+      refresh: 'Library refresh started',
+      rss_sync: 'RSS sync started',
+    };
+    return { ok: true, message: labels[action] };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  }
+}
+
 export function makeArrConnector(kind, apiBase) {
   return {
     async test(ctx) { return test(ctx, kind, apiBase); },
     async poll(ctx) { return poll(ctx, kind, apiBase); },
+    async action(ctx, payload = {}) { return runAction(ctx, kind, apiBase, payload.action); },
   };
 }

@@ -12,10 +12,12 @@ the web dashboard.
 - **Control from your phone** — Docker/Unraid container **start, stop, restart and
   update** (including update-all), SABnzbd queue and per-download pause/resume,
   Jellyfin **pause/resume/stop**, and Seerr **approve/decline** for pending
-  requests. Container updates show a **non-blocking progress card with an animated
-  progress bar, elapsed time and a clear completion/failure confirmation**, and the
-  affected container row gets a busy indicator while the action runs. Admin-only
-  controls are hidden for regular users; the server enforces the same rules.
+  requests. Sonarr/Radarr/Lidarr expose **missing-media search** and **library
+  refresh**; a Wake-on-LAN service sends a **magic packet**. Container updates show
+  a **non-blocking progress card with an animated progress bar, elapsed time and a
+  clear completion/failure confirmation**, and the affected container row gets a
+  busy indicator while the action runs. Admin-only controls are hidden for regular
+  users; the server enforces the same rules.
 - **Interactive insights** — full-width Pi-hole 24 h chart with a drag-to-inspect
   crosshair (time, queries, blocked, block rate), series toggles and an animated
   reveal; now-playing mini player with live progress; upcoming media, download
