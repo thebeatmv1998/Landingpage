@@ -392,6 +392,13 @@ async function main() {
   ok(r.status === 200 && r.json?.ok === true, 'Sonarr missing-media search action');
   r = await call(`/api/services/${ids['Radarr']}/action`, { method: 'POST', body: { action: 'refresh' } });
   ok(r.status === 200 && r.json?.ok === true, 'Radarr library refresh action');
+  r = await call(`/api/history?serviceId=${ids['Host']}&metric=ram&range=24h`);
+  ok(r.status === 200 && (r.json?.points || []).some((p) => Math.abs(p.v - 50) < 1), 'history API returns host RAM buckets');
+  r = await call('/api/uptime?range=24h');
+  const hostUptime = (r.json?.services || []).find((s) => s.name === 'Host');
+  ok(hostUptime?.pct === 100, 'uptime summary reports host 100%');
+  r = await call('/api/history?serviceId=99999&metric=ram&range=24h');
+  ok(r.status === 404, 'history rejects an unknown service');
   ok(byName['Unraid']?.stats?.some((x) => x.label === 'Array' && x.value === 'STARTED'), 'Unraid array state');
   ok(byName['Unraid']?.stats?.some((x) => x.label === 'Uptime' && /^1d /.test(String(x.value))), `Unraid uptime from boot ISO (${byName['Unraid']?.stats?.find((x) => x.label === 'Uptime')?.value})`);
   ok(byName['Unraid']?.stats?.some((x) => x.label === 'Containers' && x.value === '5/6'), 'Unraid containers via docker.containers (UPPERCASE states)');

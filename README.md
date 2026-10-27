@@ -86,6 +86,8 @@ npm start          # listens on :8080, data stored in ./data
 | **Vaultwarden** | status, user count (with admin token) |
 | **Docker** | running/stopped/unhealthy containers via an opt-in Docker socket/proxy or Unraid - **container icons** (Unraid template icon, else bundled dashboardicons), click to open the WebUI, one-click **update / restart / stop / start** with **live progress feedback and a completion confirmation** |
 | **Host system** | CPU, RAM, swap, temperature, load, network throughput and uptime from `/proc` and `/sys`, with live sparklines and clear fallback hints |
+| **History** | 24 h / 7 d / 30 d trends for host metrics, Pi-hole block rate and download speed; 5-minute buckets with hourly/daily rollups and configurable retention |
+| **Uptime & SSL** | uptime percentages and outage timelines (24 h / 7 d / 30 d) plus TLS certificate expiry warnings at 30/14/7 days |
 | **Wake-on-LAN** | send a magic packet to a powered-off host from the service menu (web) or Quick actions (Android) |
 | **Generic** | any other app — up/down check + response time |
 
@@ -118,6 +120,22 @@ On Unraid, add the same two **Path** mappings to the container template
 `/sys/class/thermal`; network counters are only fully host-level with the host `/proc`
 mounted. If a path or sensor is unavailable, the widget shows a plain-language hint and
 keeps the metrics it can read.
+
+### Long-term history, uptime & SSL
+
+Metrics are written into **5-minute SQLite buckets**. A rollup job derives hourly and
+daily buckets, and old data is pruned automatically. Defaults are 48 h of raw buckets,
+90 days of hourly rollups, 730 days of daily rollups and 30 days of uptime samples; an
+admin can change these under **Administration → General → History & retention**.
+
+- **History widget:** 24 h / 7 d / 30 d charts for host CPU/RAM, Pi-hole block rate and
+  SABnzbd download speed.
+- **Uptime & SSL widget:** uptime percentages and an outage timeline per service for
+  24 h / 7 d / 30 d, plus certificate days remaining for HTTPS services.
+- **SSL checks** run every six hours per HTTPS service. Webhook alerts fire once per
+  threshold (30, 14 and 7 days) and day through the existing alert configuration.
+- On Android the service detail shows the same certificate countdown; live host
+  sparklines are available there as well.
 
 ### Automatic local ↔ public address switching
 
@@ -242,7 +260,7 @@ Done — it appears in the admin gallery, the forms and the dashboard.
 ```bash
 npm run mock    # starts mock versions of every service API on :9000
 npm run unit    # unit tests for helpers (no network)
-npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 329 assertions)
+npm run smoke   # end-to-end test (boots a fresh instance on :8123 + mocks, 332 assertions)
 npm test        # unit + smoke
 ```
 

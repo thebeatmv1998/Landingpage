@@ -921,3 +921,11 @@ a.cal-row:hover { background: var(--card2); text-decoration: none; }
 .docker-card.is-updated::after { content: attr(data-done-label); color: var(--ok); background: var(--ok-soft, rgba(95, 201, 141, .14)); }
 .docker-card.is-failed::after { content: 'FAILED'; color: var(--bad); background: rgba(224, 96, 96, .14); }
 .docker-card.is-failed { border-color: var(--bad); }
+/* history, uptime and SSL widgets */
+.range-btns { display: inline-flex; gap: 4px; flex: none; }
+.range-btns .btn { padding: 4px 8px; font-size: 10.5px; }
+.history-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.history-cell { min-width: 0; }
+.uptime-row { padding: 5px 0; }
+.uptime-bar { display: flex; gap: 2px; height: 6px; margin-top: 5px; border-radius: 3px; overflow: hidden; }
+.uptime-bar i { flex: 1; min-width: 1px; border-radius: 1px; }

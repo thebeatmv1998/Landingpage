@@ -3,14 +3,14 @@ import { API } from '../api.js';
 import { esc, h, icon, toast, modal, confirmModal, debounce } from '../ui.js';
 import { showTask } from '../task.js';
 import { createDashGrid } from '../grid.js';
-import { WIDGETS, renderClock, renderWeather, renderServices, renderNowPlaying, renderRequests, renderDownloads, renderPihole, renderDisks, renderIndexers, renderDocker, renderHost, renderHealth, renderCalendar, renderUnraid, renderNextcloud } from './widgets.js';
+import { WIDGETS, renderClock, renderWeather, renderServices, renderNowPlaying, renderRequests, renderDownloads, renderPihole, renderDisks, renderIndexers, renderDocker, renderHost, renderHistory, renderUptime, renderHealth, renderCalendar, renderUnraid, renderNextcloud } from './widgets.js';
 import { probeService, probeServices, onReachability } from '../net.js';
 
 const RENDERERS = {
   clock: renderClock, weather: renderWeather, services: renderServices, nowPlaying: renderNowPlaying,
   requests: renderRequests,
   downloads: renderDownloads, pihole: renderPihole, disks: renderDisks, indexers: renderIndexers,
-  docker: renderDocker, host: renderHost, health: renderHealth, calendar: renderCalendar, unraid: renderUnraid,
+  docker: renderDocker, host: renderHost, history: renderHistory, uptime: renderUptime, health: renderHealth, calendar: renderCalendar, unraid: renderUnraid,
   nextcloud: renderNextcloud,
 };
 

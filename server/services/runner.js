@@ -4,6 +4,8 @@ import { serviceCtx } from './http.js';
 import { serviceMeta } from './registry.js';
 import { safeJsonParse, nowMs, clampPollMs } from '../core/util.js';
 import { notify } from '../core/notify.js';
+import { recordSnapshot } from '../core/history.js';
+import { attach as attachSsl, ensure as ensureSsl } from './ssl.js';
 
 // Accept both the legacy single-location config and the multi-city form.
 function weatherConfig(general) {
@@ -133,6 +135,7 @@ class Runner {
       requestCounts: { open: 0, approved: 0, available: 0 },
       calendar: [],
       charts: {},
+      ssl: null,
       version: '',
       fetchedAt: null,
     };
@@ -224,6 +227,9 @@ class Runner {
       this.pollService(row)
         .then((snap) => {
           this.snapshots.set(id, snap);
+          recordSnapshot(snap);
+          attachSsl(row, snap);
+          ensureSsl(row);
           this.timers.set(id, nowMs() + this.nextInterval(row));
           this.handleAlerts(snap);
           this.broadcast('service', snap);
@@ -436,6 +442,9 @@ export async function runServiceAction(row, payload) {
     runner.timers.set(row.id, nowMs());
     const snap = await runner.pollService(row);
     runner.snapshots.set(row.id, snap);
+    recordSnapshot(snap);
+    attachSsl(row, snap);
+    ensureSsl(row);
     runner.broadcast('service', snap);
     runner.timers.set(row.id, nowMs() + runner.nextInterval(row));
   }

@@ -11,6 +11,7 @@ import { requireAuth, requireAdmin } from '../auth/sessions.js';
 import { runner, testService, runServiceAction } from '../services/runner.js';
 import { serviceMeta, registry } from '../services/registry.js';
 import { fetchImage } from '../services/http.js';
+import { queryHistory, uptimeSummary } from '../core/history.js';
 
 export const apiRouter = express.Router();
 
@@ -33,12 +34,41 @@ apiRouter.get('/bootstrap', requireAuth, (req, res) => {
       hasPassword: !!user.pass_hash,
       prefs: safeJsonParse(user.prefs, {}) || {},
     },
-    settings: { appearance, widgets, general, ...(user.role === 'admin' ? { alerts: getSetting('alerts', {}) } : {}) },
+    settings: {
+      appearance, widgets, general,
+      ...(user.role === 'admin' ? { alerts: getSetting('alerts', {}), history: getSetting('history', {}) } : {}),
+    },
   });
 });
 
 apiRouter.get('/summary', requireAuth, (req, res) => {
   res.json(runner.snapshotFor(req.user));
+});
+
+// Long-term metric history (24h / 7d / 30d) for a visible service.
+apiRouter.get('/history', requireAuth, (req, res) => {
+  const serviceId = Number(req.query.serviceId);
+  const metric = String(req.query.metric || '');
+  const range = String(req.query.range || '24h');
+  if (!['24h', '7d', '30d'].includes(range)) return res.status(400).json({ error: 'Unknown range' });
+  if (!/^[a-z0-9_]{1,40}$/.test(metric)) return res.status(400).json({ error: 'Invalid metric' });
+  const row = stmts.serviceById.get(serviceId);
+  if (!row) return res.status(404).json({ error: 'Service not found' });
+  const visible = runner.visibleServicesFor(req.user).some((service) => service.id === serviceId);
+  if (!visible) return res.status(403).json({ error: 'Not allowed' });
+  res.json({ serviceId, metric, range, points: queryHistory(serviceId, metric, range) });
+});
+
+// Uptime percentages + outage timeline for all services the user can see.
+apiRouter.get('/uptime', requireAuth, (req, res) => {
+  const range = String(req.query.range || '24h');
+  if (!['24h', '7d', '30d'].includes(range)) return res.status(400).json({ error: 'Unknown range' });
+  const services = runner.visibleServicesFor(req.user).map((service) => ({
+    id: service.id,
+    name: service.name,
+    type: service.type,
+  }));
+  res.json({ range, services: uptimeSummary(range, services) });
 });
 
 // service type registry (drives the admin "add service" gallery + forms)
@@ -334,7 +364,7 @@ apiRouter.delete('/groups/:name', requireAdmin, (req, res) => {
 // ---------------------------------------------------------------------------
 // settings
 // ---------------------------------------------------------------------------
-const SETTING_KEYS = ['appearance', 'widgets', 'general', 'sso', 'alerts'];
+const SETTING_KEYS = ['appearance', 'widgets', 'general', 'sso', 'alerts', 'history'];
 
 apiRouter.get('/settings', requireAuth, (req, res) => {
   const out = {
@@ -347,6 +377,7 @@ apiRouter.get('/settings', requireAuth, (req, res) => {
     const { clientSecret, ...safeSso } = sso;
     out.sso = { ...safeSso, hasClientSecret: !!clientSecret };
     out.alerts = getSetting('alerts', {});
+    out.history = getSetting('history', {});
   }
   res.json(out);
 });
@@ -495,7 +526,7 @@ apiRouter.post('/settings/restore', requireAdmin, (req, res) => {
     });
     restored++;
   }
-  for (const key of ['appearance', 'widgets', 'general', 'sso', 'alerts']) {
+  for (const key of ['appearance', 'widgets', 'general', 'sso', 'alerts', 'history']) {
     if (payload.settings?.[key] && typeof payload.settings[key] === 'object') setSetting(key, payload.settings[key]);
   }
   runner.reload();

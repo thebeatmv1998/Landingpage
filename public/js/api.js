@@ -36,6 +36,9 @@ export const API = {
 
   bootstrap: () => request('/api/bootstrap'),
   summary: () => request('/api/summary'),
+  history: (serviceId, metric, range = '24h') =>
+    request(`/api/history?serviceId=${encodeURIComponent(serviceId)}&metric=${encodeURIComponent(metric)}&range=${encodeURIComponent(range)}`),
+  uptime: (range = '24h') => request(`/api/uptime?range=${encodeURIComponent(range)}`),
   refreshWeather: () => request('/api/weather/refresh', { method: 'POST' }),
   weatherSearch: (q, country = '') => request(`/api/weather/search?q=${encodeURIComponent(q)}&country=${encodeURIComponent(country)}`),
   saveProfile: (body) => request('/api/me/profile', { method: 'PUT', body }),

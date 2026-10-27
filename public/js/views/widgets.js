@@ -56,6 +56,8 @@ export const WIDGETS = [
   { id: 'pihole', title: 'DNS / Ad Blocking', icon: 'shield', defaultSpan: 2, defaultOn: true, desc: 'Pi-hole stats and 24h query graph' },
   { id: 'docker', title: 'Docker', icon: 'cube', defaultSpan: 2, defaultOn: true, desc: 'Container states with WebUI links, updates and health' },
   { id: 'host', title: 'Host System', icon: 'chart', defaultSpan: 2, defaultOn: true, desc: 'CPU, RAM, swap, temperature, network and uptime from /proc and /sys' },
+  { id: 'history', title: 'History', icon: 'chart', defaultSpan: 2, defaultOn: true, desc: '24h / 7d / 30d trends for host, Pi-hole and downloads' },
+  { id: 'uptime', title: 'Uptime & SSL', icon: 'shield', defaultSpan: 2, defaultOn: true, desc: 'Uptime percentages, outage timeline and TLS certificate expiry' },
   { id: 'unraid', title: 'Unraid System', icon: 'cube', defaultSpan: 2, defaultOn: true, desc: 'CPU, uptime, array, parity and disk temperatures' },
   { id: 'nextcloud', title: 'Nextcloud', icon: 'cloud', defaultSpan: 2, defaultOn: true, desc: 'Storage, files, users, shares and server load' },
   { id: 'disks', title: 'Disk Space', icon: 'chart', defaultSpan: 2, desc: 'Disk usage from *arr apps and Nextcloud' },
@@ -853,6 +855,127 @@ export function renderHost(body, ctx) {
       ${spark('Net up', charts.netTx, 'var(--bad)')}
     </div>
     ${hints.map((hint) => `<div class="hint" style="margin-top:8px">${icon('zap')} ${esc(hint)}</div>`).join('')}`;
+}
+
+// ---------------------------------------------------------------- history
+const HISTORY_RANGES = ['24h', '7d', '30d'];
+
+function historyRangeButtons(active) {
+  return `<span class="range-btns">${HISTORY_RANGES.map((range) => `<button class="btn btn-sm ${range === active ? 'btn-primary' : ''}" data-range="${range}">${range}</button>`).join('')}</span>`;
+}
+
+function historyTime(ts) {
+  try {
+    return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+export function renderHistory(body, ctx) {
+  const targets = [];
+  const host = ctx.services.find((s) => s.type === 'host');
+  const pihole = ctx.services.find((s) => s.type === 'pihole');
+  const sab = ctx.services.find((s) => s.type === 'sabnzbd');
+  if (host) {
+    targets.push({ svc: host, metric: 'cpu', label: 'Host CPU %' });
+    targets.push({ svc: host, metric: 'ram', label: 'Host RAM %' });
+  }
+  if (pihole) targets.push({ svc: pihole, metric: 'pihole_rate', label: 'Pi-hole blocked %' });
+  if (sab) targets.push({ svc: sab, metric: 'download_speed', label: 'Download speed' });
+  if (!targets.length) { body.innerHTML = emptyWidget('Long-term history', 'chart'); return; }
+
+  let range = '24h';
+  body.innerHTML = `
+    <div class="rowitem" style="margin-bottom:8px"><span class="row-sub" style="flex:1">Range</span>${historyRangeButtons(range)}</div>
+    <div class="history-grid">
+      ${targets.map((target, i) => `<div class="history-cell">
+        <div class="row-sub">${esc(target.label)}</div>
+        <div data-hist="${i}"><div class="chart-empty">Loading…</div></div>
+      </div>`).join('')}
+    </div>`;
+
+  const paint = async () => {
+    body.querySelectorAll('[data-range]').forEach((btn) => {
+      btn.classList.toggle('btn-primary', btn.dataset.range === range);
+    });
+    await Promise.all(targets.map(async (target, i) => {
+      const cell = body.querySelector(`[data-hist="${i}"]`);
+      try {
+        const res = await API.history(target.svc.id, target.metric, range);
+        const points = res?.points || [];
+        if (!cell) return;
+        if (points.length < 2) {
+          cell.innerHTML = '<div class="chart-empty">Collecting history…</div>';
+          return;
+        }
+        cell.innerHTML = areaChart({
+          width: 460,
+          height: 78,
+          series: [{ points: points.map((p) => p.v), color: 'var(--accent)' }],
+          labels: [historyTime(points[0].t), historyTime(points[points.length - 1].t)],
+        });
+      } catch (err) {
+        if (cell) cell.innerHTML = `<div class="chart-empty">${esc(err.message)}</div>`;
+      }
+    }));
+  };
+  body.querySelectorAll('[data-range]').forEach((btn) => {
+    btn.addEventListener('click', () => { range = btn.dataset.range; paint(); });
+  });
+  paint();
+}
+
+// ---------------------------------------------------------------- uptime + SSL
+export function renderUptime(body, ctx) {
+  if (!ctx.services.length) { body.innerHTML = emptyWidget('Uptime & SSL', 'shield'); return; }
+  let range = '24h';
+  body.innerHTML = `
+    <div class="rowitem" style="margin-bottom:8px"><span class="row-sub" style="flex:1">Range</span>${historyRangeButtons(range)}</div>
+    <div data-uptime-list class="rowlist"><div class="chart-empty">Loading…</div></div>`;
+
+  const paint = async () => {
+    body.querySelectorAll('[data-range]').forEach((btn) => {
+      btn.classList.toggle('btn-primary', btn.dataset.range === range);
+    });
+    try {
+      const res = await API.uptime(range);
+      const byId = new Map((res?.services || []).map((entry) => [entry.id, entry]));
+      const list = body.querySelector('[data-uptime-list]');
+      if (!list) return;
+      list.innerHTML = ctx.services.map((svc) => {
+        const entry = byId.get(svc.id) || {};
+        const pct = entry.pct == null ? null : Number(entry.pct);
+        const pctLabel = pct == null ? '–' : `${pct.toFixed(pct % 1 === 0 ? 0 : 1)}%`;
+        const tone = pct == null ? 'var(--faint)' : pct >= 99 ? 'var(--ok)' : pct >= 95 ? 'var(--warn)' : 'var(--bad)';
+        const ssl = svc.ssl;
+        const sslLabel = ssl ? (ssl.error ? 'SSL error' : ssl.daysLeft != null ? `SSL ${ssl.daysLeft}d` : 'SSL –') : '';
+        const sslTone = !ssl ? 'var(--faint)'
+          : ssl.error ? 'var(--bad)'
+            : ssl.daysLeft == null ? 'var(--faint)'
+              : ssl.daysLeft <= 7 ? 'var(--bad)' : ssl.daysLeft <= 30 ? 'var(--warn)' : 'var(--ok)';
+        const bars = (entry.timeline || []).map((point) => {
+          const color = point.pct == null ? 'var(--line)' : point.pct >= 99 ? 'var(--ok)' : point.pct >= 95 ? 'var(--warn)' : 'var(--bad)';
+          return `<i style="background:${color}"></i>`;
+        }).join('') || '<i style="background:var(--line)"></i>';
+        return `<div class="uptime-row">
+          <div class="rowitem">
+            <span class="row-sub" style="flex:1">${esc(svc.name)}</span>
+            ${sslLabel ? `<span class="row-badge" style="color:${sslTone}" title="${esc(ssl.host || '')}">${esc(sslLabel)}</span>` : ''}
+            <b style="color:${tone};font-variant-numeric:tabular-nums">${esc(pctLabel)}</b>
+          </div>
+          <div class="uptime-bar" title="${range}">${bars}</div>
+        </div>`;
+      }).join('');
+    } catch (err) {
+      const list = body.querySelector('[data-uptime-list]');
+      if (list) list.innerHTML = `<div class="chart-empty">${esc(err.message)}</div>`;
+    }
+  };
+  body.querySelectorAll('[data-range]').forEach((btn) => {
+    btn.addEventListener('click', () => { range = btn.dataset.range; paint(); });
+  });
+  paint();
 }
 
 // ---------------------------------------------------------------- disks

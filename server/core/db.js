@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS settings (
 // Schema migrations (PRAGMA user_version). Bump SCHEMA_VERSION and append a step
 // whenever the schema changes, so existing databases upgrade in place.
 // ---------------------------------------------------------------------------
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 const MIGRATIONS = [
   // v1 — initial schema (the CREATE TABLE statements above). No-op for fresh DBs.
   () => {},
@@ -115,6 +115,40 @@ const MIGRATIONS = [
         user_agent TEXT NOT NULL DEFAULT ''
       );
       CREATE INDEX IF NOT EXISTS idx_device_user ON device_tokens(user_id);
+    `);
+  },
+  // v5 — long-term metric history, uptime buckets and SSL certificate state.
+  () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS metric_buckets (
+        service_id INTEGER NOT NULL,
+        metric TEXT NOT NULL,
+        resolution INTEGER NOT NULL,
+        bucket INTEGER NOT NULL,
+        sum REAL NOT NULL DEFAULT 0,
+        count INTEGER NOT NULL DEFAULT 0,
+        min_v REAL,
+        max_v REAL,
+        last REAL,
+        PRIMARY KEY (service_id, metric, resolution, bucket)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS idx_metric_lookup ON metric_buckets(service_id, metric, resolution, bucket);
+      CREATE TABLE IF NOT EXISTS uptime_buckets (
+        service_id INTEGER NOT NULL,
+        bucket INTEGER NOT NULL,
+        total INTEGER NOT NULL DEFAULT 0,
+        online INTEGER NOT NULL DEFAULT 0,
+        sum_ms INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (service_id, bucket)
+      ) WITHOUT ROWID;
+      CREATE TABLE IF NOT EXISTS service_ssl (
+        service_id INTEGER PRIMARY KEY,
+        host TEXT NOT NULL DEFAULT '',
+        expires_at INTEGER,
+        checked_at INTEGER,
+        error TEXT NOT NULL DEFAULT '',
+        last_alert TEXT NOT NULL DEFAULT ''
+      );
     `);
   },
 ];

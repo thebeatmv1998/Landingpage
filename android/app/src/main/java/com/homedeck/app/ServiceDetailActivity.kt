@@ -934,6 +934,13 @@ class ServiceDetailActivity : AppCompatActivity() {
         infoRow(body, "Version", service.version)
         infoRow(body, "Server", service.serverName)
         infoRow(body, "Updated", if (service.fetchedAt > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(service.fetchedAt)) else "")
+        service.ssl?.let { ssl ->
+            if (ssl.error.isNotEmpty()) {
+                infoRow(body, "SSL", ssl.error)
+            } else if (ssl.daysLeft != null) {
+                infoRow(body, "SSL", "${ssl.daysLeft} days left (${ssl.host})")
+            }
+        }
         infoRow(body, "Local URL", service.url)
         infoRow(body, "External URL", service.fallbackUrl)
         infoRow(body, "Auto-switch", if (service.fallbackUrl.isNotEmpty()) (if (service.autoSwitch) "on" else "off") else "")

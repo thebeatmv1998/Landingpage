@@ -546,6 +546,7 @@ export async function renderAdmin(root, { navigate, tab: initialTab = 'services'
     const g = state.settings.general || {};
     const w = g.weather || {};
     const al = state.settings.alerts || {};
+    const hist = state.settings.history || {};
     let weatherLocations = Array.isArray(w.locations)
       ? w.locations.map((loc, i) => ({
           id: String(loc.id || `loc-${i}`),
@@ -618,6 +619,26 @@ export async function renderAdmin(root, { navigate, tab: initialTab = 'services'
           <label class="field" style="display:flex;align-items:center;gap:10px"><span class="switch"><input type="checkbox" id="g-alert-disk" ${al.onDisk !== false ? 'checked' : ''}><span class="knob"></span></span><span>Disk usage above threshold</span></label>
           <button class="btn" id="g-alert-test">${icon('zap')} Send test alert</button>
           <p class="hint">Posts JSON <code>{app, event, ts, …}</code>. Save before testing.</p>
+        </div>
+      </div>
+      <div class="field-label" style="margin-top:18px">History & retention</div>
+      <div class="panel-grid">
+        <div>
+          <label class="field"><span>Raw samples (hours)</span>
+            <input class="input" id="g-hist-raw" type="number" min="1" max="720" value="${esc(hist.rawHours ?? 48)}">
+          </label>
+          <label class="field"><span>Hourly rollups (days)</span>
+            <input class="input" id="g-hist-hourly" type="number" min="1" max="3650" value="${esc(hist.hourlyDays ?? 90)}">
+          </label>
+        </div>
+        <div>
+          <label class="field"><span>Daily rollups (days)</span>
+            <input class="input" id="g-hist-daily" type="number" min="1" max="3650" value="${esc(hist.dailyDays ?? 730)}">
+          </label>
+          <label class="field"><span>Uptime samples (days)</span>
+            <input class="input" id="g-hist-uptime" type="number" min="1" max="365" value="${esc(hist.uptimeDays ?? 30)}">
+          </label>
+          <p class="hint">Metrics are stored in 5-minute buckets; hourly and daily rollups are derived automatically. Older data is pruned.</p>
         </div>
       </div>
       <div style="margin-top:16px;text-align:right"><button class="btn btn-primary" id="g-save">${icon('check')} Save general</button></div>
@@ -723,6 +744,13 @@ export async function renderAdmin(root, { navigate, tab: initialTab = 'services'
           onDisk: main.querySelector('#g-alert-disk').checked,
         });
         state.settings.alerts = alertsRes.alerts;
+        const historyRes = await API.saveSettings('history', {
+          rawHours: Number(main.querySelector('#g-hist-raw').value) || 48,
+          hourlyDays: Number(main.querySelector('#g-hist-hourly').value) || 90,
+          dailyDays: Number(main.querySelector('#g-hist-daily').value) || 730,
+          uptimeDays: Number(main.querySelector('#g-hist-uptime').value) || 30,
+        });
+        state.settings.history = historyRes.history;
         document.title = res.general.title || 'HomeDeck';
         if (locations.length) API.refreshWeather().catch(() => {});
         toast('General settings saved', 'success');

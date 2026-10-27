@@ -18,6 +18,8 @@ the web dashboard.
   clear completion/failure confirmation**, and the affected container row gets a
   busy indicator while the action runs. Admin-only controls are hidden for regular
   users; the server enforces the same rules.
+- **Host & certificate insight** — host CPU/RAM/network sparklines and TLS
+  certificate days remaining in the service detail.
 - **Interactive insights** — full-width Pi-hole 24 h chart with a drag-to-inspect
   crosshair (time, queries, blocked, block rate), series toggles and an animated
   reveal; now-playing mini player with live progress; upcoming media, download

@@ -8,6 +8,7 @@ import { authRouter } from './auth/routes.js';
 import { pairingRouter } from './auth/pairing.js';
 import { apiRouter } from './routes/api.js';
 import { runner } from './services/runner.js';
+import { startHistoryJobs } from './core/history.js';
 
 const app = express();
 if (config.trustProxy) app.set('trust proxy', config.trustProxyHops);
@@ -94,6 +95,7 @@ app.use((err, req, res, next) => {
 
 runner.reload();
 runner.startHeartbeat();
+startHistoryJobs();
 
 const server = app.listen(config.port, config.host, () => {
   console.log(`HomeDeck listening on http://${config.host}:${config.port}`);

@@ -118,6 +118,13 @@ data class UnraidDisk(
     val status: String,
 )
 
+data class SslInfo(
+    val host: String = "",
+    val expiresAt: Long = 0L,
+    val daysLeft: Int? = null,
+    val error: String = "",
+)
+
 data class Service(
     val id: Int,
     val type: String,
@@ -135,6 +142,7 @@ data class Service(
     val iconUrl: String = "",
     val color: String = "",
     val hints: List<String> = emptyList(),
+    val ssl: SslInfo? = null,
     val activity: List<ActivityItem> = emptyList(),
     val nowPlaying: List<NowPlayingItem> = emptyList(),
     val containers: List<ContainerItem> = emptyList(),

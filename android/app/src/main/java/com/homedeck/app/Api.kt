@@ -104,6 +104,14 @@ object Api {
                     hints = j.optJSONArray("hints")?.let { arr ->
                         (0 until arr.length()).mapNotNull { idx -> arr.optString(idx, "").takeIf { it.isNotEmpty() } }
                     } ?: emptyList(),
+                    ssl = j.optJSONObject("ssl")?.let { s ->
+                        SslInfo(
+                            host = str(s, "host"),
+                            expiresAt = s.optLong("expiresAt", 0L),
+                            daysLeft = if (s.isNull("daysLeft")) null else s.optInt("daysLeft"),
+                            error = str(s, "error"),
+                        )
+                    },
                     activity = parseActivity(j.optJSONArray("activity")),
                     nowPlaying = parseNowPlaying(j.optJSONArray("nowPlaying")),
                     containers = parseContainers(j.optJSONArray("containers")),
