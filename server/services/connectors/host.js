@@ -63,13 +63,48 @@ async function readNetwork(proc) {
   return { rx, tx };
 }
 
+async function readHwmon(sys) {
+  const base = `${sys}/class/hwmon`;
+  let entries = [];
+  try {
+    entries = await fs.readdir(base);
+  } catch {
+    return { temp: null, type: '' };
+  }
+  let best = null;
+  let type = '';
+  for (const entry of entries) {
+    let files = [];
+    try {
+      files = await fs.readdir(`${base}/${entry}`);
+    } catch {
+      continue;
+    }
+    const name = (await fs.readFile(`${base}/${entry}/name`, 'utf8').catch(() => '')).trim();
+    for (const file of files.filter((item) => /^temp\d+_input$/.test(item))) {
+      try {
+        const raw = Number((await fs.readFile(`${base}/${entry}/${file}`, 'utf8')).trim());
+        if (!Number.isFinite(raw)) continue;
+        const celsius = raw > 1000 ? raw / 1000 : raw;
+        if (celsius > 0 && celsius < 150 && (best == null || celsius > best)) {
+          best = celsius;
+          type = name || file;
+        }
+      } catch {
+        // try the next sensor
+      }
+    }
+  }
+  return { temp: best, type };
+}
+
 async function readTemperature(sys) {
   const base = `${sys}/class/thermal`;
   let entries = [];
   try {
     entries = await fs.readdir(base);
   } catch {
-    return { temp: null, type: '', error: '' };
+    return readHwmon(sys);
   }
   let best = null;
   let type = '';
@@ -86,6 +121,7 @@ async function readTemperature(sys) {
       // try the next sensor
     }
   }
+  if (best == null) return readHwmon(sys);
   return { temp: best, type, error: '' };
 }
 

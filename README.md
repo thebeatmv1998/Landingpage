@@ -116,10 +116,10 @@ services:
 On Unraid, add the same two **Path** mappings to the container template
 (`/proc` → `/host/proc`, `/sys` → `/host/sys`, read-only). HomeDeck auto-detects
 `/host/proc` and `/host/sys`; alternatively set `HOST_PROC` / `HOST_SYS` or the
-`Host /proc path` and `Host /sys path` fields on the service. Temperature needs
-`/sys/class/thermal`; network counters are only fully host-level with the host `/proc`
-mounted. If a path or sensor is unavailable, the widget shows a plain-language hint and
-keeps the metrics it can read.
+`Host /proc path` and `Host /sys path` fields on the service. Temperature is read from
+`/sys/class/thermal` or `/sys/class/hwmon` (common on Unraid x86 hosts); network counters
+are only fully host-level with the host `/proc` mounted. If a path or sensor is unavailable,
+the widget shows a plain-language hint and keeps the metrics it can read.
 
 ### Long-term history, uptime & SSL
 
