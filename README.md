@@ -86,8 +86,8 @@ npm start          # listens on :8080, data stored in ./data
 | **Vaultwarden** | status, user count (with admin token) |
 | **Docker** | running/stopped/unhealthy containers via an opt-in Docker socket/proxy or Unraid - **container icons** (Unraid template icon, else bundled dashboardicons), click to open the WebUI, one-click **update / restart / stop / start** with **live progress feedback and a completion confirmation** |
 | **Host system** | CPU, RAM, swap, temperature, load, network throughput and uptime from `/proc` and `/sys`, with live sparklines and clear fallback hints |
-| **History** | 24 h / 7 d / 30 d trends for host metrics, Pi-hole block rate and download speed; 5-minute buckets with hourly/daily rollups and configurable retention |
-| **Uptime & SSL** | uptime percentages and outage timelines (24 h / 7 d / 30 d) plus TLS certificate expiry warnings at 30/14/7 days |
+| **History** | 24 h / 7 d / 30 d trends for host metrics, Pi-hole block rate and download speed; 5-minute buckets with hourly/daily rollups and configurable retention; **hover/tap crosshair with exact time and value** |
+| **Uptime & SSL** | uptime percentages and outage timelines (24 h / 7 d / 30 d) plus TLS certificate expiry warnings at 30/14/7 days; **hover a timeline segment for its bucket time and uptime** |
 | **Wake-on-LAN** | send a magic packet to a powered-off host from the service menu (web) or Quick actions (Android) |
 | **Generic** | any other app — up/down check + response time |
 

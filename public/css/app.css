@@ -929,3 +929,9 @@ a.cal-row:hover { background: var(--card2); text-decoration: none; }
 .uptime-row { padding: 5px 0; }
 .uptime-bar { display: flex; gap: 2px; height: 6px; margin-top: 5px; border-radius: 3px; overflow: hidden; }
 .uptime-bar i { flex: 1; min-width: 1px; border-radius: 1px; }
+/* interactive charts: shared crosshair/tooltip container */
+.chart-box { position: relative; min-width: 0; }
+.chart-box:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.uptime-bar i { cursor: crosshair; transition: transform .12s ease, opacity .12s ease; }
+.uptime-bar i:hover { transform: scaleY(1.8); opacity: .9; }
+.row-badge[data-tip] { cursor: help; }

@@ -831,9 +831,16 @@ export function renderHost(body, ctx) {
   const get = (label) => statValue(svc, label);
   const charts = svc.charts?.host || {};
   const tile = (label, value) => `<div class="stat-tile"><div class="v">${esc(value ?? 'n/a')}</div><div class="l">${esc(label)}</div></div>`;
-  const spark = (label, values, color) => {
-    const svg = sparkline({ values: (values || []).slice(-32), width: 190, height: 36, color });
-    return `<div style="min-width:0"><div class="row-sub">${esc(label)}</div>${svg || '<div class="chart-empty" style="padding:8px 0">Collecting…</div>'}</div>`;
+  const sparkDefs = [
+    { label: 'CPU %', values: charts.cpu || [], color: 'var(--accent)', format: (v) => `${Math.round(v)}%` },
+    { label: 'RAM %', values: charts.mem || [], color: 'var(--ok)', format: (v) => `${Math.round(v)}%` },
+    { label: 'Net down', values: charts.netRx || [], color: 'var(--accent2, var(--accent))', format: (v) => `${fmtBytes(Number(v))}/s` },
+    { label: 'Net up', values: charts.netTx || [], color: 'var(--bad)', format: (v) => `${fmtBytes(Number(v))}/s` },
+  ];
+  const spark = (def, index) => {
+    const values = def.values.slice(-32);
+    const svg = sparkline({ values, width: 190, height: 36, color: def.color });
+    return `<div class="chart-box" data-spark="${index}"><div class="row-sub">${esc(def.label)}</div>${svg || '<div class="chart-empty" style="padding:8px 0">Collecting…</div>'}</div>`;
   };
   const hints = Array.isArray(svc.hints) ? svc.hints : [];
   body.innerHTML = `
@@ -849,12 +856,21 @@ export function renderHost(body, ctx) {
       <div class="rowitem"><span class="row-sub" style="flex:1">Network</span><b>↓ ${esc(get('Net down') || '0')} · ↑ ${esc(get('Net up') || '0')}</b></div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px">
-      ${spark('CPU %', charts.cpu, 'var(--accent)')}
-      ${spark('RAM %', charts.mem, 'var(--ok)')}
-      ${spark('Net down', charts.netRx, 'var(--accent2, var(--accent))')}
-      ${spark('Net up', charts.netTx, 'var(--bad)')}
+      ${sparkDefs.map(spark).join('')}
     </div>
     ${hints.map((hint) => `<div class="hint" style="margin-top:8px">${icon('zap')} ${esc(hint)}</div>`).join('')}`;
+
+  const now = Date.now();
+  sparkDefs.forEach((def, index) => {
+    const box = body.querySelector(`[data-spark="${index}"]`);
+    const values = def.values.slice(-32);
+    wireChartHover(box, values.map((value, i) => ({ v: value, t: now - (values.length - 1 - i) * 5000 })), {
+      label: def.label,
+      color: def.color,
+      format: def.format,
+      time: true,
+    });
+  });
 }
 
 // ---------------------------------------------------------------- history
@@ -872,17 +888,129 @@ function historyTime(ts) {
   }
 }
 
+// Reusable crosshair + tooltip for the hand-drawn SVG charts. Mirrors the
+// Pi-hole interaction: hover, tap and arrow keys inspect individual points.
+function wireChartHover(box, points, { label = 'Value', color = 'var(--accent)', format = (v) => String(v), time = true } = {}) {
+  if (!box || !points.length) return;
+  const svg = box.querySelector('svg');
+  if (!svg) return;
+  box.classList.add('chart-box');
+  box.tabIndex = 0;
+  let tip = box.querySelector('.chart-tip');
+  let cross = box.querySelector('.chart-crosshair');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.className = 'chart-tip';
+    tip.hidden = true;
+    box.appendChild(tip);
+  }
+  if (!cross) {
+    cross = document.createElement('div');
+    cross.className = 'chart-crosshair';
+    cross.hidden = true;
+    box.appendChild(cross);
+  }
+  let keyIndex = 0;
+  let hideTimer = null;
+  const hide = () => {
+    tip.hidden = true;
+    cross.hidden = true;
+  };
+  const showIndex = (index) => {
+    const svgRect = svg.getBoundingClientRect();
+    const boxRect = box.getBoundingClientRect();
+    if (!svgRect.width) return;
+    const clamped = Math.max(0, Math.min(points.length - 1, index));
+    keyIndex = clamped;
+    const point = points[clamped];
+    const value = format(typeof point === 'number' ? point : point.v);
+    const when = time && point?.t ? new Date(point.t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    tip.innerHTML = `${when ? `<div class="ct-time">${esc(when)}</div>` : ''}
+      <div class="ct-row"><i style="background:${color}"></i>${esc(label)} <b>${esc(value)}</b></div>`;
+    tip.hidden = false;
+    cross.hidden = false;
+    const x = svgRect.left - boxRect.left + (clamped / Math.max(1, points.length - 1)) * svgRect.width;
+    cross.style.left = `${x}px`;
+    cross.style.top = `${svgRect.top - boxRect.top}px`;
+    cross.style.height = `${svgRect.height}px`;
+    const tipWidth = tip.offsetWidth || 150;
+    const tipHeight = tip.offsetHeight || 42;
+    const viewportX = svgRect.left + (clamped / Math.max(1, points.length - 1)) * svgRect.width;
+    tip.style.left = `${Math.min(boxRect.width - tipWidth - 4, Math.max(4, viewportX - boxRect.left + 14))}px`;
+    tip.style.top = `${Math.max(4, svgRect.top - boxRect.top - tipHeight - 6)}px`;
+  };
+  const showAt = (clientX) => {
+    const svgRect = svg.getBoundingClientRect();
+    if (!svgRect.width) return;
+    const fraction = Math.max(0, Math.min(1, (clientX - svgRect.left) / svgRect.width));
+    showIndex(Math.round(fraction * (points.length - 1)));
+  };
+  svg.addEventListener('pointermove', (event) => {
+    clearTimeout(hideTimer);
+    showAt(event.clientX);
+  });
+  svg.addEventListener('pointerdown', (event) => {
+    clearTimeout(hideTimer);
+    showAt(event.clientX);
+  });
+  svg.addEventListener('pointerup', () => {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(hide, 2600);
+  });
+  svg.addEventListener('pointerleave', hide);
+  svg.addEventListener('pointercancel', hide);
+  box.addEventListener('blur', hide);
+  box.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const last = points.length - 1;
+    if (event.key === 'ArrowLeft') keyIndex = Math.max(0, keyIndex - 1);
+    else if (event.key === 'ArrowRight') keyIndex = Math.min(last, keyIndex + 1);
+    else keyIndex = event.key === 'Home' ? 0 : last;
+    showIndex(keyIndex);
+  });
+}
+
+// Hover tooltips for uptime timeline bars and SSL badges.
+function wireBarTips(root) {
+  if (!root) return;
+  let tip = root.querySelector('.bar-tip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.className = 'chart-tip bar-tip';
+    tip.style.position = 'fixed';
+    tip.hidden = true;
+    root.appendChild(tip);
+  }
+  const hide = () => { tip.hidden = true; };
+  root.querySelectorAll('[data-tip]').forEach((node) => {
+    node.addEventListener('pointerenter', (event) => {
+      tip.textContent = node.dataset.tip;
+      tip.hidden = false;
+      const rect = tip.getBoundingClientRect();
+      tip.style.left = `${Math.max(8, Math.min(window.innerWidth - rect.width - 8, event.clientX + 12))}px`;
+      tip.style.top = `${Math.max(8, event.clientY - rect.height - 10)}px`;
+    });
+    node.addEventListener('pointermove', (event) => {
+      const rect = tip.getBoundingClientRect();
+      tip.style.left = `${Math.max(8, Math.min(window.innerWidth - rect.width - 8, event.clientX + 12))}px`;
+      tip.style.top = `${Math.max(8, event.clientY - rect.height - 10)}px`;
+    });
+    node.addEventListener('pointerleave', hide);
+  });
+}
+
 export function renderHistory(body, ctx) {
   const targets = [];
   const host = ctx.services.find((s) => s.type === 'host');
   const pihole = ctx.services.find((s) => s.type === 'pihole');
   const sab = ctx.services.find((s) => s.type === 'sabnzbd');
   if (host) {
-    targets.push({ svc: host, metric: 'cpu', label: 'Host CPU %' });
-    targets.push({ svc: host, metric: 'ram', label: 'Host RAM %' });
+    targets.push({ svc: host, metric: 'cpu', label: 'Host CPU %', format: (v) => `${Number(v).toFixed(1)} %` });
+    targets.push({ svc: host, metric: 'ram', label: 'Host RAM %', format: (v) => `${Number(v).toFixed(1)} %` });
   }
-  if (pihole) targets.push({ svc: pihole, metric: 'pihole_rate', label: 'Pi-hole blocked %' });
-  if (sab) targets.push({ svc: sab, metric: 'download_speed', label: 'Download speed' });
+  if (pihole) targets.push({ svc: pihole, metric: 'pihole_rate', label: 'Pi-hole blocked %', format: (v) => `${Number(v).toFixed(1)} %` });
+  if (sab) targets.push({ svc: sab, metric: 'download_speed', label: 'Download speed', format: (v) => `${fmtBytes(Number(v))}/s` });
   if (!targets.length) { body.innerHTML = emptyWidget('Long-term history', 'chart'); return; }
 
   let range = '24h';
@@ -914,6 +1042,12 @@ export function renderHistory(body, ctx) {
           height: 78,
           series: [{ points: points.map((p) => p.v), color: 'var(--accent)' }],
           labels: [historyTime(points[0].t), historyTime(points[points.length - 1].t)],
+        });
+        wireChartHover(cell, points, {
+          label: target.label,
+          color: 'var(--accent)',
+          format: target.format,
+          time: true,
         });
       } catch (err) {
         if (cell) cell.innerHTML = `<div class="chart-empty">${esc(err.message)}</div>`;
@@ -956,17 +1090,24 @@ export function renderUptime(body, ctx) {
               : ssl.daysLeft <= 7 ? 'var(--bad)' : ssl.daysLeft <= 30 ? 'var(--warn)' : 'var(--ok)';
         const bars = (entry.timeline || []).map((point) => {
           const color = point.pct == null ? 'var(--line)' : point.pct >= 99 ? 'var(--ok)' : point.pct >= 95 ? 'var(--warn)' : 'var(--bad)';
-          return `<i style="background:${color}"></i>`;
-        }).join('') || '<i style="background:var(--line)"></i>';
+          const tip = `${historyTime(point.t)} · ${point.pct == null ? 'no data' : `${point.pct}% uptime`}`;
+          return `<i style="background:${color}" data-tip="${esc(tip)}"></i>`;
+        }).join('') || '<i style="background:var(--line)" data-tip="No uptime samples yet"></i>';
+        const sslTip = ssl
+          ? (ssl.error
+            ? `SSL check failed for ${ssl.host}: ${ssl.error}`
+            : `SSL ${ssl.host} · ${ssl.daysLeft ?? '?'} days left`)
+          : '';
         return `<div class="uptime-row">
           <div class="rowitem">
             <span class="row-sub" style="flex:1">${esc(svc.name)}</span>
-            ${sslLabel ? `<span class="row-badge" style="color:${sslTone}" title="${esc(ssl.host || '')}">${esc(sslLabel)}</span>` : ''}
+            ${sslLabel ? `<span class="row-badge" style="color:${sslTone}" data-tip="${esc(sslTip)}">${esc(sslLabel)}</span>` : ''}
             <b style="color:${tone};font-variant-numeric:tabular-nums">${esc(pctLabel)}</b>
           </div>
-          <div class="uptime-bar" title="${range}">${bars}</div>
+          <div class="uptime-bar" title="${range} · ${esc(entry.avgMs != null ? `${entry.avgMs} ms avg` : '')}">${bars}</div>
         </div>`;
       }).join('');
+      wireBarTips(list);
     } catch (err) {
       const list = body.querySelector('[data-uptime-list]');
       if (list) list.innerHTML = `<div class="chart-empty">${esc(err.message)}</div>`;
